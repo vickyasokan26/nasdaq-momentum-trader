@@ -28,13 +28,19 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email.toLowerCase().trim() },
         })
 
+        console.log('User found:', user ? 'yes' : 'no')
+        console.log('Hash in DB:', user?.passwordHash)
+        console.log('Password entered:', credentials.password)
+
         if (!user || !user.passwordHash) {
           return null
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash)
-        if (!isValid) return null
+        console.log('Password valid:', isValid)
 
+        
+        if (!isValid) return null
         return {
           id:    user.id,
           email: user.email,
