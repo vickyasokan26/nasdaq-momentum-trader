@@ -1,0 +1,286 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?   @map("password_hash")
+  name          String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  sessions      Session[]
+  screenSessions ScreenSession[]
+  candidates    ScreenCandidate[]
+  picks         Pick[]
+  recommendations Recommendation[]
+  trades        Trade[]
+  dailyPnl      DailyPnl[]
+  settings      UserSettings?
+  performanceSnapshots CandidatePerformanceSnapshot[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─── User Settings ────────────────────────────────────────────────────────────
+
+model UserSettings {
+  id                  String   @id @default(cuid())
+  userId              String   @unique @map("user_id")
+  accountSizeEur      Float    @default(700) @map("account_size_eur")
+  maxRiskPerTradeEur  Float    @default(12) @map("max_risk_per_trade_eur")
+  maxDailyLossEur     Float    @default(21) @map("max_daily_loss_eur")
+  maxWeeklyLossEur    Float    @default(42) @map("max_weekly_loss_eur")
+  newsScanEnabled     Boolean  @default(true) @map("news_scan_enabled")
+  timezone            String   @default("Europe/Amsterdam")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// ─── Screen Sessions ─────────────────────────────────────────────────────────
+
+model ScreenSession {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  filename             String
+  sourceName           String   @default("TradingView") @map("source_name")
+  uploadedAt           DateTime @default(now()) @map("uploaded_at")
+  sourceTimestampUtc   DateTime? @map("source_timestamp_utc")
+  totalRows            Int      @map("total_rows")
+  validRows            Int      @map("valid_rows")
+  passedRows           Int      @map("passed_rows")
+  mappingJson          Json     @map("mapping_json")
+  validationSummaryJson Json    @map("validation_summary_json")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  candidates  ScreenCandidate[]
+  picks       Pick[]
+
+  @@map("screen_sessions")
+}
+
+// ─── Screen Candidates ───────────────────────────────────────────────────────
+
+enum CandidateState {
+  CANDIDATE
+  SETUP_CONFIRMED
+  INVALIDATED
+  TRADED
+  EXPIRED
+  ARCHIVED
+}
+
+model ScreenCandidate {
+  id               String         @id @default(cuid())
+  userId           String         @map("user_id")
+  sessionId        String         @map("session_id")
+  sym              String
+  description      String?
+  price            Float
+  rsi              Float?
+  ema20            Float?
+  ema50            Float?
+  sma50            Float?
+  relVol           Float?         @map("rel_vol")
+  volume           Float?
+  avgDollarVolume  Float?         @map("avg_dollar_volume")
+  sector           String?
+  marketCap        Float?         @map("market_cap")
+  floatShares      Float?         @map("float_shares")
+  earningsRaw      String?        @map("earnings_raw")
+  earningsDate     DateTime?      @map("earnings_date")
+  chg1w            Float?         @map("chg_1w")
+  high52w          Float?         @map("high_52w")
+  dist52wh         Float?         @map("dist_52wh")
+  score            Float          @default(0)
+  rank             Int?
+  candidateState   CandidateState @default(CANDIDATE) @map("candidate_state")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session     ScreenSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  picks       Pick[]
+  recommendations Recommendation[]
+  snapshots   CandidatePerformanceSnapshot[]
+
+  @@index([sessionId])
+  @@index([sym])
+  @@map("screen_candidates")
+}
+
+// ─── Performance Snapshots ────────────────────────────────────────────────────
+
+model CandidatePerformanceSnapshot {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  candidateId   String   @map("candidate_id")
+  snapshotDay   Int      @map("snapshot_day") // 1, 3, 5, 10
+  closePrice    Float    @map("close_price")
+  pctFromScreen Float    @map("pct_from_screen")
+  mfe           Float?   // Maximum Favorable Excursion
+  mae           Float?   // Maximum Adverse Excursion
+  gapNextDay    Float?   @map("gap_next_day")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  candidate ScreenCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, snapshotDay])
+  @@map("candidate_performance_snapshots")
+}
+
+// ─── Picks ────────────────────────────────────────────────────────────────────
+
+model Pick {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  sessionId       String   @map("session_id")
+  candidateId     String   @map("candidate_id")
+  rank            Int
+  newsFlag        Boolean  @default(false) @map("news_flag")
+  newsSummary     String?  @map("news_summary")
+  newsRiskLevel   String?  @map("news_risk_level") // high | medium | low | unknown
+  newsCatalystType String? @map("news_catalyst_type")
+  newsConfidence  String?  @map("news_confidence") // high | medium | low
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session   ScreenSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  candidate ScreenCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@map("picks")
+}
+
+// ─── Recommendations ─────────────────────────────────────────────────────────
+
+enum RecommendationStatus {
+  OPEN
+  CLOSED
+}
+
+enum RecommendationCloseReason {
+  TARGET_REACHED
+  INVALIDATED
+  EXPIRED
+  EARNINGS_RISK
+  MANUAL
+}
+
+model Recommendation {
+  id           String                     @id @default(cuid())
+  userId       String                     @map("user_id")
+  candidateId  String?                    @map("candidate_id")
+  sym          String
+  description  String?
+  baselinePrice Float                     @map("baseline_price")
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  expiresAt    DateTime                   @map("expires_at")
+  status       RecommendationStatus       @default(OPEN)
+  closeReason  RecommendationCloseReason? @map("close_reason")
+  closedAt     DateTime?                  @map("closed_at")
+  closePrice   Float?                     @map("close_price")
+  pct          Float?
+  notes        String?
+  updatedAt    DateTime                   @updatedAt @map("updated_at")
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  candidate ScreenCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([sym])
+  @@map("recommendations")
+}
+
+// ─── Trades ───────────────────────────────────────────────────────────────────
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+}
+
+enum TradeExitReason {
+  STOP_HIT
+  TARGET_1
+  TARGET_2
+  TRAILING_STOP
+  MANUAL
+  RULE_VIOLATION
+  EARNINGS_RISK
+  END_OF_WEEK
+}
+
+model Trade {
+  id            String          @id @default(cuid())
+  userId        String          @map("user_id")
+  tradeDate     DateTime        @map("trade_date")
+  sym           String
+  entryPrice    Float           @map("entry_price")
+  stopPrice     Float           @map("stop_price")
+  t1Price       Float           @map("t1_price")
+  t2Price       Float?          @map("t2_price")
+  riskEur       Float           @map("risk_eur")
+  shares        Int
+  notes         String?
+  status        TradeStatus     @default(OPEN)
+  exitPrice     Float?          @map("exit_price")
+  exitReason    TradeExitReason? @map("exit_reason")
+  pnlEur        Float?          @map("pnl_eur")
+  setupQuality  String?         @map("setup_quality") // HIGH | MEDIUM | LOW
+  ruleBreaksJson Json?          @map("rule_breaks_json")
+  closedAt      DateTime?       @map("closed_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tradeDate])
+  @@index([status])
+  @@map("trades")
+}
+
+// ─── Daily P&L ────────────────────────────────────────────────────────────────
+
+model DailyPnl {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  pnlDate              DateTime @map("pnl_date") @db.Date
+  systemPnlEur         Float    @default(0) @map("system_pnl_eur")
+  manualAdjustmentEur  Float    @default(0) @map("manual_adjustment_eur")
+  netPnlEur            Float    @default(0) @map("net_pnl_eur")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pnlDate])
+  @@map("daily_pnl")
+}
