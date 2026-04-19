@@ -1,14 +1,17 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 
-export async function GET(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+async function getUserId() {
+  const user = await db.user.findFirst({ select: { id: true } })
+  return user?.id
+}
 
-  const userId = session!.user.id
+export async function GET(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ candidates: [], sessionId: null })
+
   const { searchParams } = new URL(req.url)
   const sessionId = searchParams.get('sessionId')
   const latest    = searchParams.get('latest') === 'true'
@@ -25,7 +28,6 @@ export async function GET(req: NextRequest) {
     targetSessionId = latestSession.id
   }
 
-  // Verify ownership
   const sess = await db.screenSession.findFirst({
     where: { id: targetSessionId, userId },
     select: { id: true, uploadedAt: true, filename: true },
@@ -41,26 +43,5 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
-
-  const userId = session!.user.id
-  const body = await req.json()
-  const { id, candidateState } = body
-
-  const validStates = ['CANDIDATE', 'SETUP_CONFIRMED', 'INVALIDATED', 'TRADED', 'EXPIRED', 'ARCHIVED']
-  if (!validStates.includes(candidateState)) {
-    return NextResponse.json({ error: 'Invalid candidate state' }, { status: 400 })
-  }
-
-  const updated = await db.screenCandidate.updateMany({
-    where: { id, userId }, // userId check = authorization
-    data: { candidateState },
-  })
-
-  if (updated.count === 0) {
-    return NextResponse.json({ error: 'Candidate not found or unauthorized' }, { status: 404 })
-  }
-
-  return NextResponse.json({ ok: true })
-}
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found

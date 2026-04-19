@@ -1,21 +1,24 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getUserSettings } from '@/lib/session'
+import { getUserSettings } from '@/lib/session'
 import { db } from '@/lib/db'
 import { calcDayPnl, calcWeekPnl, calcDrawdownStatus } from '@/features/pnl/calculations'
 import { getWeekStart } from '@/lib/timezone'
 import { z } from 'zod'
 
-export async function GET(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+async function getUserId() {
+  const user = await db.user.findFirst({ select: { id: true } })
+  return user?.id
+}
 
-  const userId   = session!.user.id
+export async function GET(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
+
   const settings = await getUserSettings(userId)
   const now      = new Date()
 
-  // Get all closed trades
   const trades = await db.trade.findMany({
     where:  { userId, status: 'CLOSED' },
     select: { closedAt: true, pnlEur: true, status: true },
@@ -25,7 +28,6 @@ export async function GET(req: NextRequest) {
   const weekStart    = getWeekStart(now)
   const weeklySystem = calcWeekPnl(trades, weekStart)
 
-  // Get any manual adjustments
   const today = new Date()
   today.setUTCHours(0, 0, 0, 0)
 
@@ -33,15 +35,14 @@ export async function GET(req: NextRequest) {
     where: { userId_pnlDate: { userId, pnlDate: today } },
   })
 
-  const manualAdj    = todayPnl?.manualAdjustmentEur ?? 0
-  const dailyNet     = dailySystem + manualAdj
+  const manualAdj = todayPnl?.manualAdjustmentEur ?? 0
+  const dailyNet  = dailySystem + manualAdj
 
   const drawdown = calcDrawdownStatus(dailyNet, weeklySystem, {
     maxDailyLossEur:  settings.maxDailyLossEur,
     maxWeeklyLossEur: settings.maxWeeklyLossEur,
   })
 
-  // Weekly history (last 10 trading days)
   const weeklyHistory = await db.dailyPnl.findMany({
     where:   { userId },
     orderBy: { pnlDate: 'desc' },
@@ -59,14 +60,11 @@ export async function GET(req: NextRequest) {
   })
 }
 
-// PATCH — apply a manual adjustment to today's P&L (commissions, etc.)
 const AdjSchema = z.object({ adjustmentEur: z.number() })
 
 export async function PATCH(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
-
-  const userId = session!.user.id
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
   let body: unknown
   try { body = await req.json() } catch {
@@ -85,14 +83,14 @@ export async function PATCH(req: NextRequest) {
     where:  { userId_pnlDate: { userId, pnlDate: today } },
     create: {
       userId,
-      pnlDate:            today,
-      systemPnlEur:       0,
+      pnlDate:             today,
+      systemPnlEur:        0,
       manualAdjustmentEur: parsed.data.adjustmentEur,
-      netPnlEur:          parsed.data.adjustmentEur,
+      netPnlEur:           parsed.data.adjustmentEur,
     },
     update: {
       manualAdjustmentEur: parsed.data.adjustmentEur,
-      netPnlEur:           { set: 0 }, // Will be recalculated by GET
+      netPnlEur:           { set: 0 },
     },
   })
 
