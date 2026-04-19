@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       validRows:             canonicalRows.length,
       passedRows:            passing.length,
       mappingJson:           mapping.resolved,
-      validationSummaryJson: report,
+      validationSummaryJson: report as object,
     },
   })
 
