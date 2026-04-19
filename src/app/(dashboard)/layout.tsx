@@ -1,42 +1,21 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
-import { useRouter, usePathname } from 'next/navigation'
-import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { DrawdownBar } from '@/components/pnl/DrawdownBar'
 
 const NAV = [
-  { href: '/dashboard',        label: 'Dashboard',       icon: '▦' },
-  { href: '/candidates',       label: 'Candidates',      icon: '◈' },
-  { href: '/recommendations',  label: 'Recs',            icon: '◎' },
-  { href: '/trades',           label: 'Trade Log',       icon: '◉' },
-  { href: '/sizer',            label: 'Sizer',           icon: '◫' },
-  { href: '/history',          label: 'History',         icon: '◷' },
-  { href: '/settings',         label: 'Settings',        icon: '⚙' },
+  { href: '/dashboard',       label: 'Dashboard',  icon: '▦' },
+  { href: '/candidates',      label: 'Candidates', icon: '◈' },
+  { href: '/recommendations', label: 'Recs',       icon: '◎' },
+  { href: '/trades',          label: 'Trade Log',  icon: '◉' },
+  { href: '/sizer',           label: 'Sizer',      icon: '◫' },
+  { href: '/history',         label: 'History',    icon: '◷' },
+  { href: '/settings',        label: 'Settings',   icon: '⚙' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession()
-  const router   = useRouter()
   const pathname = usePathname()
-
-  //useEffect(() => {
-  //  if (status === 'unauthenticated') router.replace('/login')
-  //}, [status, router])
-
-  //if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-desk-bg">
-        <div className="flex items-center gap-3 text-text-secondary font-mono text-sm">
-          <span className="w-4 h-4 border-2 border-text-muted border-t-accent rounded-full animate-spin" />
-          Loading terminal…
-        </div>
-      </div>
-    )
-  }
-
-  //if (!session) return null
 
   return (
     <div className="flex h-screen bg-desk-bg overflow-hidden">
@@ -81,9 +60,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <DrawdownBar compact />
         </div>
 
-        {/* User / logout */}
+        {/* User */}
         <div className="px-3 py-3 border-t border-desk-border">
-          <div className="text-xxs text-text-muted font-mono truncate mb-2">trader</div>
+          <div className="text-xxs text-text-muted font-mono truncate">trader</div>
         </div>
       </aside>
 
