@@ -21,11 +21,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router   = useRouter()
   const pathname = usePathname()
 
-  useEffect(() => {
-    if (status === 'unauthenticated') router.replace('/login')
-  }, [status, router])
+  //useEffect(() => {
+  //  if (status === 'unauthenticated') router.replace('/login')
+  //}, [status, router])
 
-  if (status === 'loading') {
+  //if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-desk-bg">
         <div className="flex items-center gap-3 text-text-secondary font-mono text-sm">
@@ -36,7 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  if (!session) return null
+  //if (!session) return null
 
   return (
     <div className="flex h-screen bg-desk-bg overflow-hidden">
@@ -83,13 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User / logout */}
         <div className="px-3 py-3 border-t border-desk-border">
-          <div className="text-xxs text-text-muted font-mono truncate mb-2">{session.user.email}</div>
-          <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            className="text-xxs font-mono text-text-muted hover:text-loss transition-colors"
-          >
-            Sign out
-          </button>
+          <div className="text-xxs text-text-muted font-mono truncate mb-2">trader</div>
         </div>
       </aside>
 
