@@ -6,6 +6,8 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import { calculatePositionSize, detectRuleBreaks } from '@/features/trades/sizing'
 import { getTradingWindow } from '@/lib/timezone'
+import { Prisma } from '@prisma/client'
+
 
 const CreateTradeSchema = z.object({
   sym:        z.string().min(1).max(10).toUpperCase(),
@@ -99,7 +101,7 @@ export async function POST(req: NextRequest) {
       shares:        data.shares,
       notes:         data.notes ?? null,
       setupQuality:  data.setupQuality ?? null,
-      ruleBreaksJson: ruleBreaks.length > 0 ? ruleBreaks : null,
+      ruleBreaksJson: ruleBreaks.length > 0 ? ruleBreaks : Prisma.JsonNull,
       status:        'OPEN',
     },
   })

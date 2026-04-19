@@ -31,6 +31,8 @@ export interface ValidationReport {
   resolvedMapping:   Record<string, string>
   rowErrors:         RowError[]
   filterDropReasons: FilterDropSummary
+  [key: string]:     unknown   // ← add this line
+
 }
 
 export interface RowError {
