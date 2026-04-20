@@ -22,6 +22,7 @@ interface MutableDrops {
   dist52whGate:  number
   marketCapGate: number
   perf1yGate:    number
+  sectorCap:     number
   [key: string]: number
 }
 
@@ -47,9 +48,10 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
     dist52whGate:  0,
     marketCapGate: 0,
     perf1yGate:    0,
+    sectorCap:     0,
   }
 
-  const passing: CanonicalRow[] = []
+  const preSector: CanonicalRow[] = []
 
   for (const row of rows) {
     // 1. Price floor
@@ -123,12 +125,32 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
       continue
     }
 
-    // 10. 1-year performance gate — must be up 100%+ (momentum confirmation)
+    // 10. 1-year performance gate
     if (row.perf1y !== undefined && row.perf1y < SCREENER.MIN_PERF_1Y) {
       drops.perf1yGate++
       continue
     }
 
+    preSector.push(row)
+  }
+
+  // 11. Sector cap — max 2 picks per TradingView sector label
+  // Rows arrive in CSV order; first 2 per sector are kept, rest dropped.
+  // The ranking engine sorts by score afterwards — sector cap is applied
+  // before ranking so every sector competes fairly within its allocation.
+  const sectorCount = new Map<string, number>()
+  const passing: CanonicalRow[] = []
+
+  for (const row of preSector) {
+    const sector = (row.sector ?? 'Unknown').trim()
+    const count  = sectorCount.get(sector) ?? 0
+
+    if (count >= SCREENER.MAX_SECTOR_COUNT) {
+      drops.sectorCap++
+      continue
+    }
+
+    sectorCount.set(sector, count + 1)
     passing.push(row)
   }
 

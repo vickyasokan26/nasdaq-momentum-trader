@@ -37,6 +37,9 @@ export const SCREENER = {
 
   // 1-year performance gate — momentum confirmation (manual rule)
   MIN_PERF_1Y: 100, // stock must be up 100%+ over past 12 months
+
+  // Sector diversification cap — max picks per TradingView sector label
+  MAX_SECTOR_COUNT: 2,
 } as const
 
 /**

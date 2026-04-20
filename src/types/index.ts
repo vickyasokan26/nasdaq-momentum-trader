@@ -52,6 +52,7 @@ export interface FilterDropSummary {
   dist52whGate:     number
   marketCapGate:    number
   perf1yGate:       number
+  sectorCap:        number
   [key: string]:    number
 }
 
