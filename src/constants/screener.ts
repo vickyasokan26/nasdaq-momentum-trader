@@ -34,6 +34,9 @@ export const SCREENER = {
   // Liquidity
   MIN_AVG_VOLUME_10D: 500_000,
   MIN_MARKET_CAP: 500_000_000, // $500M — NON-NEGOTIABLE anti-manipulation filter
+
+  // 1-year performance gate — momentum confirmation (manual rule)
+  MIN_PERF_1Y: 100, // stock must be up 100%+ over past 12 months
 } as const
 
 /**

@@ -1,4 +1,4 @@
-.PHONY: install build typecheck lint test clean dev setup
+.PHONY: install build typecheck lint format test clean dev setup
 
 install:
 	npm install
@@ -12,6 +12,10 @@ typecheck:
 
 lint:
 	npm run lint
+
+format:
+	npm run format
+
 
 test:
 	npm test

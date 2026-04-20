@@ -1,11 +1,8 @@
 /**
  * Screener Filter Engine
- *
- * Applies all rules in sequence. Each filter tracks its drop count.
- * Returns passing candidates and a full drop summary for the validation report.
  */
 
-import { addDays, differenceInCalendarDays } from 'date-fns'
+import { differenceInCalendarDays } from 'date-fns'
 import type { CanonicalRow, FilterDropSummary } from '@/types'
 import { SCREENER } from '@/constants/screener'
 
@@ -24,17 +21,16 @@ interface MutableDrops {
   earningsGate:  number
   dist52whGate:  number
   marketCapGate: number
+  perf1yGate:    number
   [key: string]: number
 }
 
-/** Parse an earnings date string into a Date, returning null if invalid */
 function parseEarningsDate(raw: string | null | undefined): Date | null {
   if (!raw) return null
   const d = new Date(raw)
   return isNaN(d.getTime()) ? null : d
 }
 
-/** Days until earnings from today. Negative = already passed. */
 function daysUntilEarnings(earningsDate: Date): number {
   return differenceInCalendarDays(earningsDate, new Date())
 }
@@ -50,6 +46,7 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
     earningsGate:  0,
     dist52whGate:  0,
     marketCapGate: 0,
+    perf1yGate:    0,
   }
 
   const passing: CanonicalRow[] = []
@@ -67,7 +64,7 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
       continue
     }
 
-    // 3. RSI gate (screener range — wider than entry trigger)
+    // 3. RSI gate
     if (
       row.rsi14 !== undefined &&
       (row.rsi14 < SCREENER.RSI_MIN || row.rsi14 > SCREENER.RSI_MAX)
@@ -92,7 +89,7 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
       continue
     }
 
-    // 6. Spike guard (weekly change)
+    // 6. Spike guard (weekly change > 20% = blow-off, skip)
     if (row.chg1w !== undefined && row.chg1w > SCREENER.MAX_CHG_1W) {
       drops.spikeGuard++
       continue
@@ -103,7 +100,6 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
       const earningsDate = parseEarningsDate(row.upcomingEarningsDate)
       if (earningsDate) {
         const daysOut = daysUntilEarnings(earningsDate)
-        // Skip if earnings is within blackout window (0–10 days away)
         if (daysOut >= 0 && daysOut <= SCREENER.EARNINGS_BLACKOUT_DAYS) {
           drops.earningsGate++
           continue
@@ -118,7 +114,6 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
         drops.dist52whGate++
         continue
       }
-      // Store computed distance on the row for ranking
       ;(row as CanonicalRow & { dist52wh?: number }).dist52wh = distPct
     }
 
@@ -128,16 +123,21 @@ export function applyScreenerFilters(rows: CanonicalRow[]): FilterResult {
       continue
     }
 
+    // 10. 1-year performance gate — must be up 100%+ (momentum confirmation)
+    if (row.perf1y !== undefined && row.perf1y < SCREENER.MIN_PERF_1Y) {
+      drops.perf1yGate++
+      continue
+    }
+
     passing.push(row)
   }
 
   return { passing, drops }
 }
 
-/** Check if a single candidate passes the daily regime check for entries */
 export interface RegimeCheck {
-  passes:    boolean
-  reasons:   string[]
+  passes:  boolean
+  reasons: string[]
 }
 
 export function checkDailyRegime(row: {

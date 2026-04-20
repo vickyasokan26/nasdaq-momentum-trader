@@ -1,45 +1,57 @@
 /**
  * CSV Validation & Column Mapping
- *
- * Rules:
- * - Required fields must be present — no silent fuzzy guessing for critical columns
- * - Deterministic alias mapping only (exact match or known alias)
- * - Ambiguous columns surface a warning and require confirmation
- * - Invalid rows are logged with reason, never silently dropped
  */
 
 import { parse } from 'csv-parse/sync'
 import type { RawCsvRow, CanonicalRow, ValidationReport, RowError, FilterDropSummary } from '@/types'
 
-// ── Canonical column aliases ──────────────────────────────────────────────────
-// Map of canonical field name → list of accepted header aliases (lowercase, trimmed)
 const COLUMN_ALIASES: Record<string, string[]> = {
   symbol:              ['symbol', 'ticker', 'sym', 'name'],
   description:         ['description', 'company', 'company name', 'desc'],
   price:               ['price', 'last', 'close', 'last price', 'last close', 'price (usd)'],
-  rsi14:               ['rsi(14)', 'rsi14', 'rsi', 'relative strength index(14)'],
-  ema20:               ['ema(20)', 'ema20', '20 ema', 'exponential moving average (20)'],
-  ema50:               ['ema(50)', 'ema50', '50 ema', 'exponential moving average (50)'],
-  sma50:               ['sma(50)', 'sma50', '50 sma', 'simple moving average (50)'],
-  volume:              ['volume', 'volume 1d', 'vol', '1d volume'],
-  relativeVolume:      ['relative volume', 'relvol', 'relative volume (10d)', 'relative volume 1d', 'rel volume'],
+  rsi14:               [
+                         'rsi(14)', 'rsi14', 'rsi', 'relative strength index(14)',
+                         'relative strength index (14)', 'relative strength index (14) 1 day',
+                       ],
+  ema20:               [
+                         'ema(20)', 'ema20', '20 ema', 'exponential moving average (20)',
+                         'exponential moving average (20) 1 day',
+                       ],
+  ema50:               [
+                         'ema(50)', 'ema50', '50 ema', 'exponential moving average (50)',
+                         'exponential moving average (50) 1 day',
+                       ],
+  sma50:               [
+                         'sma(50)', 'sma50', '50 sma', 'simple moving average (50)',
+                         'simple moving average (50) 1 day',
+                       ],
+  volume:              ['volume', 'volume 1d', 'vol', '1d volume', 'volume 1 day'],
+  relativeVolume:      [
+                         'relative volume', 'relvol', 'relative volume (10d)',
+                         'relative volume 1d', 'rel volume', 'relative volume 1 day',
+                       ],
   upcomingEarningsDate:['upcoming earnings date', 'earnings date', 'earnings', 'next earnings'],
   sector:              ['sector'],
-  high52w:             ['52 week high', '52w high', '52-week high', 'year high'],
-  chg1w:               ['change % 1w', '1w change', '1w change %', 'weekly change', 'change (1w)', 'price change % 1w'],
+  high52w:             ['52 week high', '52w high', '52-week high', 'year high', 'high 52 weeks'],
+  chg1w:               [
+                         'change % 1w', '1w change', '1w change %', 'weekly change',
+                         'change (1w)', 'price change % 1w', 'price change % 1 week',
+                       ],
   marketCap:           ['market cap', 'market capitalization', 'mktcap'],
+  perf1y:              [
+                         'performance % 1 year', 'performance (1 year)', 'perf 1y',
+                         '1 year performance', 'performance % 1y',
+                       ],
 }
 
-const REQUIRED_FIELDS = ['symbol', 'price']
-const IMPORTANT_FIELDS = ['rsi14', 'ema20', 'ema50', 'sma50', 'volume', 'relativeVolume']
-
-// ── Column detection ──────────────────────────────────────────────────────────
+const REQUIRED_FIELDS  = ['symbol', 'price']
+const IMPORTANT_FIELDS = ['rsi14', 'ema20', 'ema50', 'sma50', 'volume', 'relativeVolume', 'perf1y']
 
 export interface MappingResult {
-  resolved:    Record<string, string>   // canonical → actual header
-  missing:     string[]                 // required fields that couldn't be mapped
-  ambiguous:   string[]                 // fields with multiple potential matches
-  unmapped:    string[]                 // input headers not matched to any canonical field
+  resolved:  Record<string, string>
+  missing:   string[]
+  ambiguous: string[]
+  unmapped:  string[]
 }
 
 export function detectColumnMapping(headers: string[]): MappingResult {
@@ -58,7 +70,7 @@ export function detectColumnMapping(headers: string[]): MappingResult {
       resolved[canonical] = matches[0]
     } else if (matches.length > 1) {
       ambiguous.push(canonical)
-      resolved[canonical] = matches[0] // take first, surface warning
+      resolved[canonical] = matches[0]
     }
   }
 
@@ -68,8 +80,6 @@ export function detectColumnMapping(headers: string[]): MappingResult {
 
   return { resolved, missing, ambiguous, unmapped }
 }
-
-// ── CSV Parsing ───────────────────────────────────────────────────────────────
 
 export interface ParsedCsv {
   headers: string[]
@@ -98,16 +108,14 @@ export function parseCsvBuffer(buffer: Buffer): ParsedCsv {
   }
 }
 
-// ── Row Canonicalization ──────────────────────────────────────────────────────
-
 export interface RowResult {
   row?:   CanonicalRow
   error?: RowError
 }
 
 export function canonicalizeRow(
-  rawRow: RawCsvRow,
-  mapping: Record<string, string>,
+  rawRow:   RawCsvRow,
+  mapping:  Record<string, string>,
   rowIndex: number,
 ): RowResult {
   const get = (field: string): string | undefined =>
@@ -127,7 +135,6 @@ export function canonicalizeRow(
   const parseNum = (field: string): number | undefined => {
     const v = get(field)
     if (v === undefined || v === '' || v === 'N/A' || v === '-' || v === 'null') return undefined
-    // Handle % suffix
     const cleaned = v.replace('%', '').replace(',', '').trim()
     const n = parseFloat(cleaned)
     return isNaN(n) ? undefined : n
@@ -140,32 +147,31 @@ export function canonicalizeRow(
   }
 
   const row: CanonicalRow = {
-    symbol:                sym,
-    description:           get('description'),
+    symbol:               sym,
+    description:          get('description'),
     price,
-    rsi14:                 parseNum('rsi14'),
-    ema20:                 parseNum('ema20'),
-    ema50:                 parseNum('ema50'),
-    sma50:                 parseNum('sma50'),
-    volume:                parseNum('volume'),
-    relativeVolume:        parseNum('relativeVolume'),
-    upcomingEarningsDate:  parseDate('upcomingEarningsDate'),
-    sector:                get('sector'),
-    high52w:               parseNum('high52w'),
-    chg1w:                 parseNum('chg1w'),
-    marketCap:             parseNum('marketCap'),
+    rsi14:                parseNum('rsi14'),
+    ema20:                parseNum('ema20'),
+    ema50:                parseNum('ema50'),
+    sma50:                parseNum('sma50'),
+    volume:               parseNum('volume'),
+    relativeVolume:       parseNum('relativeVolume'),
+    upcomingEarningsDate: parseDate('upcomingEarningsDate'),
+    sector:               get('sector'),
+    high52w:              parseNum('high52w'),
+    chg1w:                parseNum('chg1w'),
+    marketCap:            parseNum('marketCap'),
+    perf1y:               parseNum('perf1y'),
   }
 
   return { row }
 }
 
-// ── Full Validation Pipeline ──────────────────────────────────────────────────
-
 export interface ValidationResult {
-  mapping:       MappingResult
-  valid:         CanonicalRow[]
-  rowErrors:     RowError[]
-  totalRows:     number
+  mapping:   MappingResult
+  valid:     CanonicalRow[]
+  rowErrors: RowError[]
+  totalRows: number
 }
 
 export function validateCsvImport(buffer: Buffer): ValidationResult | { fatalError: string } {
@@ -185,31 +191,21 @@ export function validateCsvImport(buffer: Buffer): ValidationResult | { fatalErr
   const rowErrors: RowError[] = []
 
   for (let i = 0; i < parsed.rows.length; i++) {
-    const result = canonicalizeRow(parsed.rows[i], mapping.resolved, i + 2) // +2 = 1-indexed + header row
-    if (result.row) {
-      valid.push(result.row)
-    } else if (result.error) {
-      rowErrors.push(result.error)
-    }
+    const result = canonicalizeRow(parsed.rows[i], mapping.resolved, i + 2)
+    if (result.row)   valid.push(result.row)
+    else if (result.error) rowErrors.push(result.error)
   }
 
-  return {
-    mapping,
-    valid,
-    rowErrors,
-    totalRows: parsed.rows.length,
-  }
+  return { mapping, valid, rowErrors, totalRows: parsed.rows.length }
 }
 
-// ── Validation Report Builder ─────────────────────────────────────────────────
-
 export function buildValidationReport(
-  totalRows:     number,
-  validRows:     number,
-  passedRows:    number,
-  mapping:       MappingResult,
-  rowErrors:     RowError[],
-  filterDrops:   FilterDropSummary,
+  totalRows:   number,
+  validRows:   number,
+  passedRows:  number,
+  mapping:     MappingResult,
+  rowErrors:   RowError[],
+  filterDrops: FilterDropSummary,
 ): ValidationReport {
   return {
     totalRows,

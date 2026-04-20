@@ -19,6 +19,7 @@ export interface CanonicalRow {
   high52w?:                number
   chg1w?:                  number
   marketCap?:              number
+  perf1y?:                 number
 }
 
 export interface ValidationReport {
@@ -31,8 +32,7 @@ export interface ValidationReport {
   resolvedMapping:   Record<string, string>
   rowErrors:         RowError[]
   filterDropReasons: FilterDropSummary
-  [key: string]:     unknown   // ← add this line
-
+  [key: string]:     unknown
 }
 
 export interface RowError {
@@ -51,7 +51,8 @@ export interface FilterDropSummary {
   earningsGate:     number
   dist52whGate:     number
   marketCapGate:    number
-  [key: string]:    number  // allows iteration as Record<string, number>
+  perf1yGate:       number
+  [key: string]:    number
 }
 
 // ─── Screener Results ─────────────────────────────────────────────────────────
@@ -94,18 +95,18 @@ export interface DailyPnlSummary {
   manualAdj:     number
   netPnl:        number
   tradeCount:    number
-  dailyLimitPct: number  // 0–1
+  dailyLimitPct: number
 }
 
 export interface DrawdownStatus {
-  dailyPnl:         number
-  dailyLimit:       number
-  dailyLimitUsedPct: number
-  weeklyPnl:        number
-  weeklyLimit:      number
+  dailyPnl:           number
+  dailyLimit:         number
+  dailyLimitUsedPct:  number
+  weeklyPnl:          number
+  weeklyLimit:        number
   weeklyLimitUsedPct: number
-  dailyStopHit:     boolean
-  weeklyStopHit:    boolean
+  dailyStopHit:       boolean
+  weeklyStopHit:      boolean
 }
 
 // ─── News Scan ────────────────────────────────────────────────────────────────
@@ -138,7 +139,7 @@ export interface TradeEvaluationResult {
   rrToT1:        number
   rrToT2?:       number
   sizing:        SizingResult
-  conviction:    number // 1–10
+  conviction:    number
   redFlags:      string[]
   verdict:       'ENTER' | 'WAIT' | 'SKIP'
   verdictReason: string

@@ -1,29 +1,27 @@
 /**
  * Ranking Engine
- *
- * Scores passing candidates and returns them sorted descending by score.
- * All inputs are deterministic — same data = same score every time.
- * Score formula is testable and revisionable via RANKING constants.
  */
 
 import type { CanonicalRow, ScoredCandidate } from '@/types'
 import { RANKING } from '@/constants/screener'
 
 export interface ScoreBreakdown {
-  rsiProximity:  number
-  relVol:        number
-  emaStack:      number
-  dist52wh:      number
-  chg1w:         number
-  total:         number
+  rsiProximity: number
+  relVol:       number
+  emaStack:     number
+  dist52wh:     number
+  chg1w:        number
+  perf1y:       number
+  total:        number
 }
 
 export function scoreCandidate(row: CanonicalRow): ScoreBreakdown {
   let rsiProximity = 0
-  let relVol = 0
-  let emaStack = 0
-  let dist52wh = 0
-  let chg1w = 0
+  let relVol       = 0
+  let emaStack     = 0
+  let dist52wh     = 0
+  let chg1w        = 0
+  let perf1y       = 0
 
   // RSI proximity to 50 (ideal = 50, score decreases with distance)
   if (row.rsi14 !== undefined) {
@@ -56,9 +54,19 @@ export function scoreCandidate(row: CanonicalRow): ScoreBreakdown {
     }
   }
 
-  const total = rsiProximity + relVol + emaStack + dist52wh + chg1w
+  // 1-year performance bonus — stronger momentum = higher score (capped)
+  if (row.perf1y !== undefined) {
+    // Bonus for 100–300% range (sweet spot), diminishing above 300% (potential exhaustion)
+    if (row.perf1y >= 100 && row.perf1y <= 300) {
+      perf1y = Math.round((row.perf1y - 100) / 200 * 10) // 0–10 pts
+    } else if (row.perf1y > 300) {
+      perf1y = 5 // still good but reduce score — extreme runs can be exhausted
+    }
+  }
 
-  return { rsiProximity, relVol, emaStack, dist52wh, chg1w, total }
+  const total = rsiProximity + relVol + emaStack + dist52wh + chg1w + perf1y
+
+  return { rsiProximity, relVol, emaStack, dist52wh, chg1w, perf1y, total }
 }
 
 export function rankCandidates(candidates: CanonicalRow[]): ScoredCandidate[] {
@@ -73,19 +81,17 @@ export function rankCandidates(candidates: CanonicalRow[]): ScoredCandidate[] {
     }
   })
 
-  // Sort descending by score, then alphabetical by symbol for stability
+  // Sort descending by score, then alphabetical for stability
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
     return a.symbol.localeCompare(b.symbol)
   })
 
-  // Assign ranks (1-indexed)
   scored.forEach((c, i) => { c.rank = i + 1 })
 
   return scored
 }
 
-/** Compute score breakdown for display (used in candidates table) */
 export function getScoreBreakdown(candidate: ScoredCandidate): ScoreBreakdown {
   return scoreCandidate(candidate)
 }
