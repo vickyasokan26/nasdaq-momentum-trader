@@ -4,14 +4,29 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { DrawdownBar } from '@/components/pnl/DrawdownBar'
 
-const NAV = [
-  { href: '/dashboard',       label: 'Dashboard',  icon: '▦' },
-  { href: '/candidates',      label: 'Candidates', icon: '◈' },
-  { href: '/recommendations', label: 'Recs',       icon: '◎' },
-  { href: '/trades',          label: 'Trade Log',  icon: '◉' },
-  { href: '/sizer',           label: 'Sizer',      icon: '◫' },
-  { href: '/history',         label: 'History',    icon: '◷' },
-  { href: '/settings',        label: 'Settings',   icon: '⚙' },
+const NAV_SECTIONS = [
+  {
+    label: 'Overview',
+    items: [
+      { href: '/dashboard',  label: 'Dashboard' },
+    ],
+  },
+  {
+    label: 'Trading',
+    items: [
+      { href: '/candidates',      label: 'Candidates' },
+      { href: '/recommendations', label: 'Recs' },
+      { href: '/trades',          label: 'Trade Log' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { href: '/sizer',    label: 'Position Sizer' },
+      { href: '/history',  label: 'History' },
+      { href: '/settings', label: 'Settings' },
+    ],
+  },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -21,49 +36,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen bg-desk-bg overflow-hidden">
       {/* ── Sidebar ── */}
       <aside className="w-[200px] shrink-0 flex flex-col bg-desk-surface border-r border-desk-border">
+
         {/* Logo */}
-        <div className="px-4 py-5 border-b border-desk-border">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-ticker/10 border border-ticker/20 rounded flex items-center justify-center">
-              <span className="text-ticker text-xxs font-mono font-bold">M</span>
-            </div>
-            <span className="text-text-primary text-sm font-semibold tracking-tight">Momentum</span>
-          </div>
-          <p className="text-text-muted text-xxs font-mono mt-0.5 pl-8">NASDAQ DESK</p>
+        <div className="px-5 py-[22px] border-b border-desk-border">
+          <div className="font-mono text-[10px] text-gain tracking-[0.12em] uppercase mb-1">NDX Desk</div>
+          <div className="text-[15px] font-bold tracking-tight text-text-primary leading-none">Momentum Trader</div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-4 space-y-0.5">
-          {NAV.map(item => {
-            const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`
-                  flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-100
-                  ${active
-                    ? 'bg-accent/15 text-accent font-medium'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-desk-raised'
-                  }
-                `}
-              >
-                <span className="text-base leading-none w-4 text-center opacity-70">{item.icon}</span>
-                {item.label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 py-4 overflow-y-auto">
+          {NAV_SECTIONS.map(section => (
+            <div key={section.label} className="mb-2">
+              <div className="font-mono text-[9px] tracking-[0.16em] uppercase text-text-muted px-5 py-2">
+                {section.label}
+              </div>
+              {section.items.map(item => {
+                const active = pathname === item.href ||
+                  (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`
+                      flex items-center gap-[9px] px-5 py-2 text-[13px] font-medium
+                      border-l-2 transition-all duration-150
+                      ${active
+                        ? 'text-gain border-gain bg-gain/10'
+                        : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-white/[0.03]'
+                      }
+                    `}
+                  >
+                    <span className={`w-[5px] h-[5px] rounded-full shrink-0 opacity-60 ${active ? 'bg-gain' : 'bg-current'}`} />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
-        {/* Drawdown bar */}
-        <div className="px-3 py-3 border-t border-desk-border">
-          <DrawdownBar compact />
+        {/* Drawdown + Account */}
+        <div className="border-t border-desk-border">
+          <div className="px-3 py-3">
+            <DrawdownBar compact />
+          </div>
+          <div className="px-4 pb-4">
+            <div className="bg-desk-raised border border-desk-border rounded-lg px-3 py-2.5">
+              <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-text-muted mb-1">Account</div>
+              <div className="font-mono text-lg font-semibold text-gain leading-tight">€700</div>
+              <div className="text-[11px] text-text-muted mt-0.5">Target €20–30/day</div>
+            </div>
+          </div>
         </div>
 
-        {/* User */}
-        <div className="px-3 py-3 border-t border-desk-border">
-          <div className="text-xxs text-text-muted font-mono truncate">trader</div>
-        </div>
       </aside>
 
       {/* ── Main content ── */}

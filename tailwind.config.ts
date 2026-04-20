@@ -9,51 +9,50 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Terminal dark palette
+        // Dark surface palette
         desk: {
-          bg:        '#08090d',
-          surface:   '#0e1018',
-          raised:    '#141720',
-          border:    '#1e2433',
-          muted:     '#2a3047',
+          bg:        '#0a0b0d',
+          surface:   '#111318',
+          raised:    '#181c24',
+          border:    'rgba(255,255,255,0.07)',
+          muted:     'rgba(255,255,255,0.12)',
         },
         // Text
         text: {
           primary:   '#e8eaf0',
-          secondary: '#8892a4',
-          muted:     '#4a5568',
+          secondary: '#8b90a0',
+          muted:     '#555b6e',
         },
         // Semantic
-        gain:   '#10b981',  // emerald-500
-        loss:   '#ef4444',  // red-500
-        warn:   '#f59e0b',  // amber-500
-        accent: '#6366f1',  // indigo-500
-        // Ticker accent
-        ticker: '#f0c040',
+        gain:   '#00d67c',
+        loss:   '#ff4d6d',
+        warn:   '#f5a623',
+        accent: '#4d9fff',
+        ticker: '#4d9fff',
       },
       fontFamily: {
-        mono:    ['var(--font-mono)', 'JetBrains Mono', 'Fira Code', 'monospace'],
-        display: ['var(--font-display)', 'DM Sans', 'sans-serif'],
-        sans:    ['var(--font-sans)', 'DM Sans', 'sans-serif'],
+        mono:    ['var(--font-mono)', 'IBM Plex Mono', 'monospace'],
+        display: ['var(--font-display)', 'Syne', 'sans-serif'],
+        sans:    ['var(--font-sans)', 'Syne', 'sans-serif'],
       },
       fontSize: {
         'xxs': '0.65rem',
       },
       boxShadow: {
-        'glow-gain': '0 0 12px rgba(16, 185, 129, 0.25)',
-        'glow-loss': '0 0 12px rgba(239, 68, 68, 0.25)',
-        'glow-warn': '0 0 12px rgba(245, 158, 11, 0.25)',
-        'glow-accent': '0 0 12px rgba(99, 102, 241, 0.25)',
+        'glow-gain':   '0 0 12px rgba(0, 214, 124, 0.2)',
+        'glow-loss':   '0 0 12px rgba(255, 77, 109, 0.2)',
+        'glow-warn':   '0 0 12px rgba(245, 166, 35, 0.2)',
+        'glow-accent': '0 0 12px rgba(77, 159, 255, 0.2)',
       },
       animation: {
         'fade-in':    'fadeIn 0.2s ease-in-out',
-        'slide-up':   'slideUp 0.3s ease-out',
+        'slide-up':   'slideUp 0.25s ease-out',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'blink':      'blink 1s step-end infinite',
       },
       keyframes: {
         fadeIn:  { from: { opacity: '0' }, to: { opacity: '1' } },
-        slideUp: { from: { opacity: '0', transform: 'translateY(8px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+        slideUp: { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
         blink:   { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0' } },
       },
     },
