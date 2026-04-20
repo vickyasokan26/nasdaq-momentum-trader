@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getUserSettings } from '@/lib/session'
+import { getUserSettings } from '@/lib/session'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import type { NewsScanResult } from '@/types'
@@ -10,11 +10,15 @@ const ScanSchema = z.object({
   symbols: z.array(z.string().max(10)).min(1).max(10),
 })
 
-export async function POST(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+async function getUserId() {
+  const user = await db.user.findFirst({ select: { id: true } })
+  return user?.id
+}
 
-  const userId   = session!.user.id
+export async function POST(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
+
   const settings = await getUserSettings(userId)
 
   if (!settings.newsScanEnabled) {
@@ -39,7 +43,6 @@ export async function POST(req: NextRequest) {
       const result = await scanSymbol(sym)
       results.push(result)
     } catch (err) {
-      // Do not fail the whole batch on one symbol failure
       results.push({
         sym,
         riskLevel:    'unknown',
@@ -51,7 +54,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Persist results to pick records where applicable
   for (const result of results) {
     await db.pick.updateMany({
       where: {
@@ -60,11 +62,11 @@ export async function POST(req: NextRequest) {
         session:   { uploadedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
       },
       data: {
-        newsFlag:        result.riskLevel === 'high',
-        newsSummary:     result.summary,
-        newsRiskLevel:   result.riskLevel,
+        newsFlag:         result.riskLevel === 'high',
+        newsSummary:      result.summary,
+        newsRiskLevel:    result.riskLevel,
         newsCatalystType: result.catalystType,
-        newsConfidence:  result.confidence,
+        newsConfidence:   result.confidence,
       },
     })
   }
@@ -122,14 +124,14 @@ Definitions:
     .join('')
 
   const cleaned = text.replace(/```json|```/g, '').trim()
-  const parsed  = JSON.parse(cleaned)
+  const parsedResult = JSON.parse(cleaned)
 
   return {
     sym,
-    riskLevel:    parsed.risk_level    ?? 'unknown',
-    catalystType: parsed.catalyst_type ?? 'none_found',
-    confidence:   parsed.confidence    ?? 'low',
-    summary:      parsed.summary       ?? 'No summary available.',
+    riskLevel:    parsedResult.risk_level    ?? 'unknown',
+    catalystType: parsedResult.catalyst_type ?? 'none_found',
+    confidence:   parsedResult.confidence    ?? 'low',
+    summary:      parsedResult.summary       ?? 'No summary available.',
     scannedAt:    new Date().toISOString(),
   }
 }

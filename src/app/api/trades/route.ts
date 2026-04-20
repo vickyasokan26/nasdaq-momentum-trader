@@ -1,23 +1,22 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getUserSettings } from '@/lib/session'
+import { getUserSettings } from '@/lib/session'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { calculatePositionSize, detectRuleBreaks } from '@/features/trades/sizing'
 import { getTradingWindow } from '@/lib/timezone'
 import { Prisma } from '@prisma/client'
 
-
 const CreateTradeSchema = z.object({
-  sym:        z.string().min(1).max(10).toUpperCase(),
-  entryPrice: z.number().positive(),
-  stopPrice:  z.number().positive(),
-  t1Price:    z.number().positive(),
-  t2Price:    z.number().positive().optional(),
-  riskEur:    z.number().positive().max(50),
-  shares:     z.number().int().positive(),
-  notes:      z.string().max(1000).optional(),
+  sym:          z.string().min(1).max(10).toUpperCase(),
+  entryPrice:   z.number().positive(),
+  stopPrice:    z.number().positive(),
+  t1Price:      z.number().positive(),
+  t2Price:      z.number().positive().optional(),
+  riskEur:      z.number().positive().max(50),
+  shares:       z.number().int().positive(),
+  notes:        z.string().max(1000).optional(),
   setupQuality: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
 })
 
@@ -27,13 +26,17 @@ const CloseTradeSchema = z.object({
   notes:      z.string().max(1000).optional(),
 })
 
-export async function GET(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+async function getUserId() {
+  const user = await db.user.findFirst({ select: { id: true } })
+  return user?.id
+}
 
-  const userId = session!.user.id
+export async function GET(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status') // 'open' | 'closed' | null = all
+  const status = searchParams.get('status')
 
   const where: Record<string, unknown> = { userId }
   if (status === 'open')   where.status = 'OPEN'
@@ -48,10 +51,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
-  const userId = session!.user.id
   const settings = await getUserSettings(userId)
 
   let body: unknown
@@ -66,7 +68,6 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data
 
-  // Validate sizing
   const sizing = calculatePositionSize({
     entryPrice:     data.entryPrice,
     stopPrice:      data.stopPrice,
@@ -76,7 +77,6 @@ export async function POST(req: NextRequest) {
     accountSizeEur: settings.accountSizeEur,
   })
 
-  // Detect rule breaks
   const tradingWindow = getTradingWindow(new Date())
   const ruleBreaks = detectRuleBreaks({
     sym:            data.sym,
@@ -91,18 +91,18 @@ export async function POST(req: NextRequest) {
   const trade = await db.trade.create({
     data: {
       userId,
-      tradeDate:     new Date(),
-      sym:           data.sym,
-      entryPrice:    data.entryPrice,
-      stopPrice:     data.stopPrice,
-      t1Price:       data.t1Price,
-      t2Price:       data.t2Price ?? null,
-      riskEur:       data.riskEur,
-      shares:        data.shares,
-      notes:         data.notes ?? null,
-      setupQuality:  data.setupQuality ?? null,
+      tradeDate:      new Date(),
+      sym:            data.sym,
+      entryPrice:     data.entryPrice,
+      stopPrice:      data.stopPrice,
+      t1Price:        data.t1Price,
+      t2Price:        data.t2Price ?? null,
+      riskEur:        data.riskEur,
+      shares:         data.shares,
+      notes:          data.notes ?? null,
+      setupQuality:   data.setupQuality ?? null,
       ruleBreaksJson: ruleBreaks.length > 0 ? ruleBreaks : Prisma.JsonNull,
-      status:        'OPEN',
+      status:         'OPEN',
     },
   })
 
@@ -110,13 +110,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
-  const userId = session!.user.id
   const { searchParams } = new URL(req.url)
   const tradeId = searchParams.get('id')
-
   if (!tradeId) return NextResponse.json({ error: 'Trade ID required' }, { status: 400 })
 
   let body: unknown
@@ -129,14 +127,11 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 422 })
   }
 
-  // Verify ownership and get trade
   const existingTrade = await db.trade.findFirst({ where: { id: tradeId, userId } })
   if (!existingTrade) return NextResponse.json({ error: 'Trade not found' }, { status: 404 })
   if (existingTrade.status === 'CLOSED') return NextResponse.json({ error: 'Trade already closed' }, { status: 409 })
 
   const { exitPrice, exitReason, notes } = parsed.data
-
-  // P&L = (exit - entry) * shares (long-only in Phase 1)
   const pnlEur = (exitPrice - existingTrade.entryPrice) * existingTrade.shares
 
   const trade = await db.trade.update({
@@ -151,7 +146,6 @@ export async function PATCH(req: NextRequest) {
     },
   })
 
-  // Upsert daily P&L record
   const today = new Date()
   today.setUTCHours(0, 0, 0, 0)
 
@@ -168,13 +162,11 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
-  const userId = session!.user.id
   const { searchParams } = new URL(req.url)
   const tradeId = searchParams.get('id')
-
   if (!tradeId) return NextResponse.json({ error: 'Trade ID required' }, { status: 400 })
 
   const trade = await db.trade.findFirst({ where: { id: tradeId, userId } })

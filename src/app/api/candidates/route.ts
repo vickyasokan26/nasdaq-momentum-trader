@@ -45,4 +45,23 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const userId = await getUserId()
   if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
+
+  const body = await req.json()
+  const { id, candidateState } = body
+
+  const validStates = ['CANDIDATE', 'SETUP_CONFIRMED', 'INVALIDATED', 'TRADED', 'EXPIRED', 'ARCHIVED']
+  if (!validStates.includes(candidateState)) {
+    return NextResponse.json({ error: 'Invalid candidate state' }, { status: 400 })
   }
+
+  const updated = await db.screenCandidate.updateMany({
+    where: { id, userId },
+    data: { candidateState },
+  })
+
+  if (updated.count === 0) {
+    return NextResponse.json({ error: 'Candidate not found' }, { status: 404 })
+  }
+
+  return NextResponse.json({ ok: true })
+}

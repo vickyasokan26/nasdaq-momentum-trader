@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
@@ -11,11 +10,15 @@ const CloseRecSchema = z.object({
   notes:       z.string().max(500).optional(),
 })
 
-export async function GET(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+async function getUserId() {
+  const user = await db.user.findFirst({ select: { id: true } })
+  return user?.id
+}
 
-  const userId = session!.user.id
+export async function GET(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
 
@@ -23,7 +26,6 @@ export async function GET(req: NextRequest) {
   if (status === 'open')   where.status = 'OPEN'
   if (status === 'closed') where.status = 'CLOSED'
 
-  // Auto-expire stale recommendations
   await db.recommendation.updateMany({
     where: { userId, status: 'OPEN', expiresAt: { lte: new Date() } },
     data:  { status: 'CLOSED', closeReason: 'EXPIRED', closedAt: new Date() },
@@ -43,10 +45,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
-  const userId = session!.user.id
   const { searchParams } = new URL(req.url)
   const recId = searchParams.get('id')
   if (!recId) return NextResponse.json({ error: 'ID required' }, { status: 400 })
@@ -86,10 +87,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
-  const userId = session!.user.id
   const { searchParams } = new URL(req.url)
   const recId = searchParams.get('id')
   if (!recId) return NextResponse.json({ error: 'ID required' }, { status: 400 })

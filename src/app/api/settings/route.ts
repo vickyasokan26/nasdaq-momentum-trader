@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/session'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
@@ -14,11 +13,14 @@ const SettingsSchema = z.object({
   timezone:           z.string().max(50).optional(),
 })
 
-export async function GET(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+async function getUserId() {
+  const user = await db.user.findFirst({ select: { id: true } })
+  return user?.id
+}
 
-  const userId = session!.user.id
+export async function GET(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
   const settings = await db.userSettings.upsert({
     where:  { userId },
@@ -30,10 +32,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
-
-  const userId = session!.user.id
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
 
   let body: unknown
   try { body = await req.json() } catch {

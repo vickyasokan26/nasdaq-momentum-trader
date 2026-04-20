@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getUserSettings } from '@/lib/session'
+import { getUserSettings } from '@/lib/session'
+import { db } from '@/lib/db'
 import { calculatePositionSize } from '@/features/trades/sizing'
 import { getTradingWindow } from '@/lib/timezone'
 import { z } from 'zod'
@@ -14,11 +15,15 @@ const SizerSchema = z.object({
   riskEur:    z.number().positive().max(50),
 })
 
-export async function POST(req: NextRequest) {
-  const { session, error } = await requireAuth()
-  if (error) return error
+async function getUserId() {
+  const user = await db.user.findFirst({ select: { id: true } })
+  return user?.id
+}
 
-  const userId   = session!.user.id
+export async function POST(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
+
   const settings = await getUserSettings(userId)
 
   let body: unknown
