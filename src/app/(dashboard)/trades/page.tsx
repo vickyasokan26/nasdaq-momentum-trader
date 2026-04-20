@@ -31,6 +31,7 @@ export default function TradesPage() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [closingTrade, setClosingTrade] = useState<Trade | null>(null)
+  const [editingTrade, setEditingTrade] = useState<Trade | null>(null)
 
   const { data } = useQuery({
     queryKey: ['trades'],
@@ -97,6 +98,7 @@ export default function TradesPage() {
           <TradeTable
             trades={open}
             onClose={t => setClosingTrade(t)}
+            onEdit={t => setEditingTrade(t)}
             showClose
           />
         </div>
@@ -112,7 +114,7 @@ export default function TradesPage() {
             <p className="text-text-muted font-mono text-sm">No closed trades yet</p>
           </div>
         ) : (
-          <TradeTable trades={closed} />
+          <TradeTable trades={closed} onEdit={t => setEditingTrade(t)} />
         )}
       </div>
 
@@ -130,15 +132,24 @@ export default function TradesPage() {
           onClosed={() => { qc.invalidateQueries({ queryKey: ['trades', 'pnl'] }); setClosingTrade(null) }}
         />
       )}
+
+      {editingTrade && (
+        <EditTradeModal
+          trade={editingTrade}
+          onClose={() => setEditingTrade(null)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['trades'] }); setEditingTrade(null) }}
+        />
+      )}
     </div>
   )
 }
 
 // ── Trade Table ───────────────────────────────────────────────────────────────
 
-function TradeTable({ trades, onClose, showClose }: {
+function TradeTable({ trades, onClose, onEdit, showClose }: {
   trades: Trade[]
   onClose?: (t: Trade) => void
+  onEdit?:  (t: Trade) => void
   showClose?: boolean
 }) {
   return (
@@ -157,7 +168,7 @@ function TradeTable({ trades, onClose, showClose }: {
               <th>Exit</th>
               <th>P&L</th>
               <th>Quality</th>
-              {showClose && <th></th>}
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -215,16 +226,27 @@ function TradeTable({ trades, onClose, showClose }: {
                       : <span className="text-text-muted">—</span>
                     }
                   </td>
-                  {showClose && onClose && (
-                    <td>
-                      <button
-                        onClick={() => onClose(t)}
-                        className="text-xs font-mono text-accent hover:text-indigo-300 transition-colors"
-                      >
-                        Close
-                      </button>
-                    </td>
-                  )}
+                  <td>
+                    <div className="flex items-center gap-3">
+                      {onEdit && (
+                        <button
+                          onClick={() => onEdit(t)}
+                          className="text-xs font-mono text-text-muted hover:text-accent transition-colors"
+                          title="Edit trade"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {showClose && onClose && (
+                        <button
+                          onClick={() => onClose(t)}
+                          className="text-xs font-mono text-accent hover:text-indigo-300 transition-colors"
+                        >
+                          Close
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               )
             })}
@@ -387,7 +409,221 @@ function CreateTradeModal({ open, onClose, onCreated }: {
   )
 }
 
-// ── Close Trade Modal ─────────────────────────────────────────────────────────
+// ── Edit Trade Modal ──────────────────────────────────────────────────────────
+
+function EditTradeModal({ trade, onClose, onSaved }: {
+  trade: Trade; onClose: () => void; onSaved: () => void
+}) {
+  const isClosed = trade.status === 'CLOSED'
+
+  // Format ISO datetime to YYYY-MM-DD for <input type="date">
+  const tradeDateDefault = trade.tradeDate
+    ? new Date(trade.tradeDate).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0]
+
+  const { register, handleSubmit } = useForm<{
+    sym: string; tradeDate: string; entryPrice: number; stopPrice: number
+    t1Price: number; t2Price: number; riskEur: number; shares: number
+    notes: string; setupQuality: string
+  }>({
+    defaultValues: {
+      sym:          trade.sym,
+      tradeDate:    tradeDateDefault,
+      entryPrice:   trade.entryPrice,
+      stopPrice:    trade.stopPrice,
+      t1Price:      trade.t1Price,
+      t2Price:      trade.t2Price ?? undefined,
+      riskEur:      trade.riskEur,
+      shares:       trade.shares,
+      notes:        trade.notes ?? '',
+      setupQuality: trade.setupQuality ?? '',
+    },
+  })
+
+  const [apiError, setApiError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch(`/api/trades?id=${trade.id}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(data),
+      }).then(async r => {
+        const json = await r.json()
+        if (!r.ok) throw new Error(json.error ?? `Server error ${r.status}`)
+        return json
+      }),
+    onSuccess: (data) => {
+      if (data.error) { setApiError(data.error); return }
+      onSaved()
+    },
+    onError: (err: unknown) => {
+      setApiError(err instanceof Error ? err.message : 'Save failed — please try again')
+    },
+  })
+
+  function onSubmit(values: Record<string, unknown>) {
+    setApiError('')
+    if (isClosed) {
+      // Closed trades: notes + quality only — financial fields are locked
+      mutation.mutate({
+        notes:        (values.notes as string) || null,
+        setupQuality: (values.setupQuality as string) || null,
+      })
+      return
+    }
+    mutation.mutate({
+      sym:          (values.sym as string).toUpperCase(),
+      tradeDate:    values.tradeDate
+                      ? new Date(values.tradeDate as string).toISOString()
+                      : undefined,
+      entryPrice:   parseFloat(values.entryPrice as string),
+      stopPrice:    parseFloat(values.stopPrice as string),
+      t1Price:      parseFloat(values.t1Price as string),
+      t2Price:      values.t2Price ? parseFloat(values.t2Price as string) : null,
+      riskEur:      parseFloat(values.riskEur as string),
+      shares:       parseInt(values.shares as string),
+      notes:        (values.notes as string) || null,
+      setupQuality: (values.setupQuality as string) || null,
+    })
+  }
+
+  const inputCls = 'w-full bg-desk-raised border border-desk-border rounded-lg px-3 py-2 text-sm font-mono text-text-primary focus:outline-none focus:border-accent disabled:opacity-40 disabled:cursor-not-allowed'
+  const labelCls = 'block text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-1'
+
+  return (
+    <Modal open onClose={onClose} title={`Edit ${trade.sym}`} width="max-w-2xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+        {isClosed && (
+          <div className="bg-desk-raised border border-desk-border rounded-lg px-3 py-2.5">
+            <p className="text-xs font-mono text-text-muted">
+              Trade is closed — financial fields are locked. You can update notes and setup quality.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className={labelCls}>Symbol</label>
+            <input
+              {...register('sym', { required: !isClosed })}
+              className={inputCls}
+              disabled={isClosed}
+              placeholder="AAPL"
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Trade Date</label>
+            <input
+              {...register('tradeDate', { required: !isClosed })}
+              type="date"
+              className={inputCls}
+              disabled={isClosed}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Setup Quality</label>
+            <select {...register('setupQuality')} className={inputCls}>
+              <option value="">Select…</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className={labelCls}>Entry Price $</label>
+            <input
+              {...register('entryPrice', { required: !isClosed })}
+              type="number" step="0.01"
+              className={inputCls}
+              disabled={isClosed}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Stop Price $</label>
+            <input
+              {...register('stopPrice', { required: !isClosed })}
+              type="number" step="0.01"
+              className={`${inputCls} border-loss/30`}
+              disabled={isClosed}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Target 1 $</label>
+            <input
+              {...register('t1Price', { required: !isClosed })}
+              type="number" step="0.01"
+              className={`${inputCls} border-gain/30`}
+              disabled={isClosed}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className={labelCls}>Target 2 $ (opt)</label>
+            <input
+              {...register('t2Price')}
+              type="number" step="0.01"
+              className={inputCls}
+              disabled={isClosed}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Risk €</label>
+            <input
+              {...register('riskEur', { required: !isClosed })}
+              type="number" step="0.01"
+              className={`${inputCls} border-warn/30`}
+              disabled={isClosed}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Shares</label>
+            <input
+              {...register('shares', { required: !isClosed })}
+              type="number"
+              className={inputCls}
+              disabled={isClosed}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className={labelCls}>Notes</label>
+          <textarea
+            {...register('notes')}
+            rows={3}
+            className={`${inputCls} resize-none`}
+            placeholder="Entry thesis, observations, corrections…"
+          />
+        </div>
+
+        {apiError && (
+          <div className="bg-loss/5 border border-loss/30 rounded-lg px-3 py-2.5">
+            <p className="text-sm font-mono text-loss">✗ {apiError}</p>
+          </div>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={onClose}
+            className="flex-1 bg-desk-raised border border-desk-border text-text-secondary text-sm font-semibold py-2.5 rounded-lg hover:text-text-primary transition-colors">
+            Cancel
+          </button>
+          <button type="submit" disabled={mutation.isPending}
+            className="flex-1 bg-accent hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">
+            {mutation.isPending ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 
 function CloseTradeModal({ trade, onClose, onClosed }: {
   trade: Trade; onClose: () => void; onClosed: () => void

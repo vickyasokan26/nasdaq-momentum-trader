@@ -26,6 +26,26 @@ const CloseTradeSchema = z.object({
   notes:      z.string().max(1000).optional(),
 })
 
+// Open trades: all fields editable
+const EditOpenTradeSchema = z.object({
+  sym:          z.string().min(1).max(10).toUpperCase().optional(),
+  tradeDate:    z.string().optional(), // ISO string — converted to Date in handler
+  entryPrice:   z.number().positive().optional(),
+  stopPrice:    z.number().positive().optional(),
+  t1Price:      z.number().positive().optional(),
+  t2Price:      z.number().positive().nullable().optional(),
+  riskEur:      z.number().positive().max(50).optional(),
+  shares:       z.number().int().positive().optional(),
+  notes:        z.string().max(1000).nullable().optional(),
+  setupQuality: z.enum(['HIGH', 'MEDIUM', 'LOW']).nullable().optional(),
+})
+
+// Closed trades: metadata only — financial data is locked once P&L is recorded
+const EditClosedTradeSchema = z.object({
+  notes:        z.string().max(1000).nullable().optional(),
+  setupQuality: z.enum(['HIGH', 'MEDIUM', 'LOW']).nullable().optional(),
+})
+
 async function getUserId() {
   const user = await db.user.findFirst({ select: { id: true } })
   return user?.id
@@ -159,6 +179,51 @@ export async function PATCH(req: NextRequest) {
   })
 
   return NextResponse.json({ trade, pnlEur })
+}
+
+export async function PUT(req: NextRequest) {
+  const userId = await getUserId()
+  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const tradeId = searchParams.get('id')
+  if (!tradeId) return NextResponse.json({ error: 'Trade ID required' }, { status: 400 })
+
+  const existing = await db.trade.findFirst({ where: { id: tradeId, userId } })
+  if (!existing) return NextResponse.json({ error: 'Trade not found' }, { status: 404 })
+
+  let body: unknown
+  try { body = await req.json() } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  if (existing.status === 'OPEN') {
+    const parsed = EditOpenTradeSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 422 })
+    }
+    // Extract tradeDate separately — needs Date conversion before Prisma update
+    const { tradeDate: tradeDateStr, ...restData } = parsed.data
+    const trade = await db.trade.update({
+      where: { id: tradeId },
+      data: {
+        ...restData,
+        ...(tradeDateStr ? { tradeDate: new Date(tradeDateStr) } : {}),
+      },
+    })
+    return NextResponse.json({ trade })
+  }
+
+  // CLOSED — only metadata editable
+  const parsed = EditClosedTradeSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 422 })
+  }
+  const trade = await db.trade.update({
+    where: { id: tradeId },
+    data:  parsed.data,
+  })
+  return NextResponse.json({ trade })
 }
 
 export async function DELETE(req: NextRequest) {
