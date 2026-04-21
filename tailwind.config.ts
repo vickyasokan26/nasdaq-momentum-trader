@@ -14,8 +14,8 @@ const config: Config = {
           bg:        '#0a0b0d',
           surface:   '#111318',
           raised:    '#181c24',
-          border:    'rgba(255,255,255,0.07)',
-          muted:     'rgba(255,255,255,0.12)',
+          border:    '#1e2028',
+          muted:     '#2a2c38',
         },
         // Text
         text: {
