@@ -1,6 +1,6 @@
 'use client'
 
-import { pnlSign, pnlColor } from '@/components/ui/Badge'
+import { pnlSign } from '@/components/ui/Badge'
 import type { DrawdownStatus } from '@/types'
 
 interface Props {
@@ -11,31 +11,31 @@ interface Props {
   }
 }
 
-function ProgressBar({
-  used, label, limit, stopHit,
-}: {
+function pnlCssColor(pnl: number) {
+  if (pnl > 0) return 'var(--green)'
+  if (pnl < 0) return 'var(--red)'
+  return 'var(--text3)'
+}
+
+function ProgressBar({ used, label, limit, stopHit }: {
   used: number; label: string; limit: number; stopHit: boolean
 }) {
-  const pct        = Math.min(1, used)
-  const barColor   =
-    stopHit          ? 'bg-loss' :
-    pct > 0.75       ? 'bg-loss' :
-    pct > 0.5        ? 'bg-warn' : 'bg-gain'
+  const pct      = Math.min(1, used)
+  const barColor = stopHit || pct > 0.75 ? 'var(--red)' : pct > 0.5 ? 'var(--amber)' : 'var(--green)'
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xxs font-mono text-text-muted uppercase tracking-widest">{label}</span>
-        <span className={`text-xxs font-mono tabular ${stopHit ? 'text-loss' : 'text-text-secondary'}`}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          {label}
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: stopHit ? 'var(--red)' : 'var(--text2)', fontVariantNumeric: 'tabular-nums' }}>
           {(pct * 100).toFixed(0)}% of €{limit.toFixed(0)}
-          {stopHit && <span className="ml-1 text-loss font-bold animate-pulse">STOP</span>}
+          {stopHit && <span style={{ marginLeft: 6, color: 'var(--red)', fontWeight: 700 }}>STOP</span>}
         </span>
       </div>
-      <div className="h-1.5 bg-desk-muted rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-          style={{ width: `${pct * 100}%` }}
-        />
+      <div style={{ height: 6, background: 'var(--bg3)', borderRadius: 999, overflow: 'hidden' }}>
+        <div style={{ height: '100%', borderRadius: 999, background: barColor, width: `${pct * 100}%`, transition: 'width 0.5s ease' }} />
       </div>
     </div>
   )
@@ -44,69 +44,65 @@ function ProgressBar({
 export function DrawdownPanel({ data }: Props) {
   if (!data) {
     return (
-      <div className="bg-desk-surface border border-desk-border rounded-xl p-5 animate-pulse">
-        <div className="h-4 bg-desk-raised rounded w-1/3 mb-4" />
-        <div className="space-y-3">
-          <div className="h-3 bg-desk-raised rounded" />
-          <div className="h-3 bg-desk-raised rounded" />
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+        <div style={{ height: 14, background: 'var(--bg3)', borderRadius: 4, width: '30%', marginBottom: 20 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ height: 10, background: 'var(--bg3)', borderRadius: 4 }} />
+          <div style={{ height: 10, background: 'var(--bg3)', borderRadius: 4 }} />
         </div>
       </div>
     )
   }
 
   const { drawdown, settings } = data
-  const dailyPnlColor   = pnlColor(drawdown.dailyPnl)
-  const weeklyPnlColor  = pnlColor(drawdown.weeklyPnl)
+  const hasStop = drawdown.dailyStopHit || drawdown.weeklyStopHit
 
   return (
-    <div className={`bg-desk-surface border rounded-xl p-5 ${
-      drawdown.dailyStopHit || drawdown.weeklyStopHit
-        ? 'border-loss/40 shadow-glow-loss'
-        : 'border-desk-border'
-    }`}>
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">
+    <div style={{
+      background:   'var(--bg2)',
+      border:       hasStop ? '1px solid rgba(255,77,109,0.4)' : '1px solid var(--border)',
+      boxShadow:    hasStop ? '0 0 16px rgba(255,77,109,0.15)' : 'none',
+      borderRadius: 12,
+      padding:      20,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
           Drawdown Guard
         </h3>
-        <span className="text-xxs font-mono text-text-muted">€{settings.accountSizeEur.toFixed(0)} account</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)' }}>
+          €{settings.accountSizeEur.toFixed(0)} account
+        </span>
       </div>
 
-      {/* Stop hit alert */}
-      {(drawdown.dailyStopHit || drawdown.weeklyStopHit) && (
-        <div className="bg-loss/10 border border-loss/30 rounded-lg px-3 py-2.5 mb-4 animate-fade-in">
-          <p className="text-sm font-mono font-semibold text-loss">
+      {hasStop && (
+        <div style={{ background: 'rgba(255,77,109,0.08)', border: '1px solid rgba(255,77,109,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--red)' }}>
             ⛔ {drawdown.dailyStopHit ? 'Daily' : 'Weekly'} loss limit reached — STOP TRADING
           </p>
-          <p className="text-xs font-mono text-text-muted mt-0.5">
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text3)', marginTop: 4 }}>
             Protect the account. Do not override this.
           </p>
         </div>
       )}
 
-      {/* P&L summary */}
-      <div className="grid grid-cols-2 gap-4 mb-5">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         <div>
-          <div className="text-xxs font-mono text-text-muted uppercase tracking-widest mb-1">Today P&amp;L</div>
-          <div className={`text-2xl font-mono font-semibold tabular ${dailyPnlColor}`}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>Today P&amp;L</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.6rem', fontWeight: 600, color: pnlCssColor(drawdown.dailyPnl), fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
             {pnlSign(drawdown.dailyPnl)}
           </div>
-          <div className="text-xxs font-mono text-text-muted mt-0.5">
-            Target: +€20 → +€30
-          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', marginTop: 6 }}>Target: +€20 → +€30</div>
         </div>
         <div>
-          <div className="text-xxs font-mono text-text-muted uppercase tracking-widest mb-1">This Week</div>
-          <div className={`text-2xl font-mono font-semibold tabular ${weeklyPnlColor}`}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>This Week</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.6rem', fontWeight: 600, color: pnlCssColor(drawdown.weeklyPnl), fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
             {pnlSign(drawdown.weeklyPnl)}
           </div>
-          <div className="text-xxs font-mono text-text-muted mt-0.5">
-            Target: +€100 → +€150
-          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', marginTop: 6 }}>Target: +€100 → +€150</div>
         </div>
       </div>
 
-      {/* Progress bars */}
-      <div className="space-y-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <ProgressBar
           label="Daily loss used"
           used={drawdown.dailyLimitUsedPct}

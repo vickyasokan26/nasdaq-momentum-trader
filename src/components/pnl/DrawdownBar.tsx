@@ -1,42 +1,47 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { pnlSign, pnlColor } from '@/components/ui/Badge'
+import { pnlSign } from '@/components/ui/Badge'
 
 export function DrawdownBar({ compact }: { compact?: boolean }) {
   const { data } = useQuery({
-    queryKey:       ['pnl'],
-    queryFn:        () => fetch('/api/pnl').then(r => r.json()),
+    queryKey:        ['pnl'],
+    queryFn:         () => fetch('/api/pnl').then(r => r.json()),
     refetchInterval: 60_000,
   })
 
   if (!data?.drawdown) return null
 
   const { drawdown } = data
-  const daily  = drawdown.dailyPnl
+  const daily   = drawdown.dailyPnl
   const usedPct = drawdown.dailyLimitUsedPct
 
   const barColor =
-    drawdown.dailyStopHit   ? 'bg-loss' :
-    usedPct > 0.75          ? 'bg-loss' :
-    usedPct > 0.5           ? 'bg-warn' : 'bg-gain'
+    drawdown.dailyStopHit ? 'var(--red)'   :
+    usedPct > 0.75        ? 'var(--red)'   :
+    usedPct > 0.5         ? 'var(--amber)' : 'var(--green)'
+
+  const pnlCssColor = daily > 0 ? 'var(--green)' : daily < 0 ? 'var(--red)' : 'var(--text3)'
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xxs font-mono text-text-muted">Today</span>
-        <span className={`text-xxs font-mono font-semibold tabular ${pnlColor(daily)}`}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)' }}>Today</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 600, color: pnlCssColor, fontVariantNumeric: 'tabular-nums' }}>
           {pnlSign(daily)}
         </span>
       </div>
-      <div className="h-1 bg-desk-muted rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-          style={{ width: `${Math.max(2, usedPct * 100)}%` }}
-        />
+      <div style={{ height: 4, background: 'var(--bg3)', borderRadius: 999, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%',
+          borderRadius: 999,
+          background: barColor,
+          width: `${Math.max(2, usedPct * 100)}%`,
+          transition: 'width 0.5s ease',
+        }} />
       </div>
       {drawdown.dailyStopHit && (
-        <p className="text-xxs font-mono text-loss mt-1 animate-pulse">⛔ Stop hit</p>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--red)', marginTop: 4 }}>⛔ Stop hit</p>
       )}
     </div>
   )
