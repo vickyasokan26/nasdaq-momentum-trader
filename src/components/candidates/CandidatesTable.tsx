@@ -203,17 +203,17 @@ function StatusIcon({ status }: { status: Signal['status'] }) {
   return <span className="text-text-muted text-xs">·</span>
 }
 
-const STATUS_CHIP: Record<Signal['status'], string> = {
-  ok:      'border-gain/20  bg-gain/5   text-gain',
-  warn:    'border-warn/20  bg-warn/5   text-warn',
-  fail:    'border-loss/20  bg-loss/5   text-loss',
-  neutral: 'border-desk-border bg-desk-raised text-text-secondary',
+const CHIP_COLOR: Record<Signal['status'], { color: string; border: string; bg: string }> = {
+  ok:      { color: 'var(--green)', border: 'rgba(0,214,124,0.28)',  bg: 'rgba(0,214,124,0.07)'  },
+  warn:    { color: 'var(--amber)', border: 'rgba(245,166,35,0.28)', bg: 'rgba(245,166,35,0.07)' },
+  fail:    { color: 'var(--red)',   border: 'rgba(255,77,109,0.28)', bg: 'rgba(255,77,109,0.07)' },
+  neutral: { color: 'var(--text2)', border: 'var(--border)',         bg: 'var(--bg3)'            },
 }
 
-const VERDICT_STYLE = {
-  ENTER: { banner: 'bg-gain/8  border-gain/25', label: 'text-gain',  badge: 'bg-gain/15 text-gain border-gain/25' },
-  WAIT:  { banner: 'bg-warn/8  border-warn/25', label: 'text-warn',  badge: 'bg-warn/15 text-warn border-warn/25' },
-  SKIP:  { banner: 'bg-loss/8  border-loss/25', label: 'text-loss',  badge: 'bg-loss/15 text-loss border-loss/25' },
+const VERDICT_COLOR = {
+  ENTER: { main: 'var(--green)', dim: 'rgba(0,214,124,0.08)',   border: 'rgba(0,214,124,0.22)',   badge: 'bg-gain/15 text-gain border-gain/25'  },
+  WAIT:  { main: 'var(--amber)', dim: 'rgba(245,166,35,0.08)',  border: 'rgba(245,166,35,0.22)',  badge: 'bg-warn/15 text-warn border-warn/25'  },
+  SKIP:  { main: 'var(--red)',   dim: 'rgba(255,77,109,0.08)',  border: 'rgba(255,77,109,0.22)',  badge: 'bg-loss/15 text-loss border-loss/25'  },
 }
 
 export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: Props) {
@@ -270,7 +270,7 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                 ? (c.rsi < 50 ? 'text-warn' : c.rsi < 65 ? 'text-gain' : 'text-text-secondary')
                 : 'text-text-muted'
               const emaGapColor = emaGap < 1 ? 'text-warn' : emaGap > 8 ? 'text-warn' : 'text-gain'
-              const vs          = VERDICT_STYLE[verdict.v]
+              const vc          = VERDICT_COLOR[verdict.v]
 
               return (
                 <>
@@ -337,7 +337,7 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                       <span className="text-xxs text-text-muted truncate max-w-[90px] block">{c.sector ?? '—'}</span>
                     </td>
                     <td className="text-center">
-                      <span className={`text-xxs font-mono font-bold px-2.5 py-1 rounded-md border ${vs.badge}`}>
+                      <span className={`text-xxs font-mono font-bold px-2.5 py-1 rounded-md border ${vc.badge}`}>
                         {verdict.v}
                       </span>
                     </td>
@@ -386,89 +386,147 @@ function VerdictPanel({
   const verdict = calcVerdict(c)
   const levels  = calcLevels(c)
   const signals = buildSignals(c)
-  const vs      = VERDICT_STYLE[verdict.v]
+  const vc      = VERDICT_COLOR[verdict.v]
+
+  const tile: React.CSSProperties = {
+    background: 'var(--bg)',
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: 20,
+    flex: '1 1 0',
+  }
+  const tileLabel: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.6rem',
+    color: 'var(--text3)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.12em',
+    marginBottom: 12,
+  }
+  const tileVal: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '1.85rem',
+    fontWeight: 700,
+    color: 'var(--text)',
+    lineHeight: 1,
+  }
+  const tileSub: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.8rem',
+    color: 'var(--text2)',
+    marginTop: 6,
+  }
+  const tileNote: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.65rem',
+    color: 'var(--text3)',
+    marginTop: 12,
+    lineHeight: 1.4,
+  }
 
   return (
-    <div className="px-5 py-4 space-y-3 border-t border-desk-border bg-desk-raised/30 animate-slide-up">
+    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: '1px solid var(--border)', background: 'rgba(255,255,255,0.012)' }}>
 
-      <div className={`rounded-xl border px-5 py-3.5 flex items-center gap-4 ${vs.banner}`}>
-        <div className={`text-2xl font-mono font-black tracking-widest shrink-0 ${vs.label}`}>
+      {/* ── Verdict banner ── */}
+      <div style={{ background: vc.dim, border: `1px solid ${vc.border}`, borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 24 }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '3.5rem', fontWeight: 900, color: vc.main, letterSpacing: '0.08em', lineHeight: 1, flexShrink: 0 }}>
           {verdict.v}
         </div>
-        <div className="w-px h-8 bg-white/10 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className={`text-xs font-mono font-semibold uppercase tracking-widest mb-0.5 ${vs.label} opacity-80`}>
+        <div style={{ width: 1, height: 64, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: vc.main, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7, opacity: 0.85 }}>
             {verdict.label}
           </div>
-          <div className="text-sm text-text-secondary leading-relaxed">{verdict.text}</div>
+          <div style={{ fontSize: '0.875rem', color: 'var(--text2)', lineHeight: 1.65 }}>
+            {verdict.text}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2.5">
-        <div className="bg-desk-surface border border-desk-border rounded-xl p-4">
-          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Entry Zone</div>
-          <div className="font-mono text-lg font-bold text-text-primary leading-tight">${levels.entryLow.toFixed(2)}</div>
-          <div className="font-mono text-sm text-text-secondary mt-0.5">– ${levels.entryHigh.toFixed(2)}</div>
-          <div className="text-xxs font-mono text-text-muted mt-2">1H EMA retest — confirm on chart</div>
+      {/* ── 4 level tiles ── */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        {/* Entry */}
+        <div style={tile}>
+          <div style={tileLabel}>Entry Zone</div>
+          <div style={tileVal}>${levels.entryLow.toFixed(2)}</div>
+          <div style={tileSub}>– ${levels.entryHigh.toFixed(2)}</div>
+          <div style={tileNote}>1H EMA retest — confirm on chart</div>
         </div>
 
-        <div className="bg-desk-surface border border-loss/15 rounded-xl p-4">
-          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Stop</div>
-          <div className="font-mono text-lg font-bold text-loss leading-tight">${levels.stop.toFixed(2)}</div>
-          <div className="font-mono text-sm text-loss/50 mt-0.5">-{levels.stopPct.toFixed(1)}% from entry</div>
-          <div className="text-xxs font-mono text-text-muted mt-2">Structure-based, not fixed %</div>
+        {/* Stop */}
+        <div style={{ ...tile, border: '1px solid rgba(255,77,109,0.2)' }}>
+          <div style={tileLabel}>Stop</div>
+          <div style={{ ...tileVal, color: 'var(--red)' }}>${levels.stop.toFixed(2)}</div>
+          <div style={{ ...tileSub, color: 'rgba(255,77,109,0.5)' }}>-{levels.stopPct.toFixed(1)}% from entry</div>
+          <div style={tileNote}>Structure-based, not fixed %</div>
         </div>
 
-        <div className="bg-desk-surface border border-gain/15 rounded-xl p-4">
-          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Targets</div>
-          <div className="font-mono text-lg font-bold text-gain leading-tight">T1 ${levels.t1.toFixed(2)}</div>
-          <div className="font-mono text-sm text-gain/60 mt-0.5">T2 ${levels.t2.toFixed(2)}</div>
-          <div className="text-xxs font-mono text-text-muted mt-2">Take 50–60% at T1, trail rest</div>
+        {/* Targets */}
+        <div style={{ ...tile, border: '1px solid rgba(0,214,124,0.2)' }}>
+          <div style={tileLabel}>Targets</div>
+          <div style={{ ...tileVal, color: 'var(--green)' }}>T1 ${levels.t1.toFixed(2)}</div>
+          <div style={{ ...tileSub, color: 'rgba(0,214,124,0.55)' }}>T2 ${levels.t2.toFixed(2)}</div>
+          <div style={tileNote}>Take 50–60% at T1, trail rest</div>
         </div>
 
-        <div className={`bg-desk-surface border rounded-xl p-4 ${levels.rr < 2 ? 'border-loss/15' : 'border-desk-border'}`}>
-          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Position / Risk</div>
-          <div className="font-mono text-lg font-bold text-text-primary leading-tight">€{Math.round(levels.posEur)}</div>
-          <div className="font-mono text-sm text-text-secondary mt-0.5">~{levels.shares} shares</div>
-          <div className={`text-xs font-mono font-semibold mt-2 ${levels.rr < 2 ? 'text-loss' : 'text-gain'}`}>
+        {/* Position / Risk */}
+        <div style={{ ...tile, border: levels.rr < 2 ? '1px solid rgba(255,77,109,0.2)' : '1px solid var(--border)' }}>
+          <div style={tileLabel}>Position / Risk</div>
+          <div style={tileVal}>€{Math.round(levels.posEur)}</div>
+          <div style={tileSub}>~{levels.shares} shares</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, marginTop: 12, color: levels.rr < 2 ? 'var(--red)' : 'var(--green)' }}>
             R:R {levels.rr.toFixed(1)}:1{levels.rr < 2 ? ' ⚠' : ''}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {signals.map(s => (
-          <div
-            key={s.key}
-            title={s.tooltip}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono cursor-help hover:opacity-90 transition-opacity ${STATUS_CHIP[s.status]}`}
-          >
-            <StatusIcon status={s.status} />
-            <span className="text-xxs uppercase tracking-wider opacity-60 mr-0.5">{s.key}</span>
-            <span className="font-semibold">{s.val}</span>
-          </div>
-        ))}
+      {/* ── Signal chips ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {signals.map(s => {
+          const cc = CHIP_COLOR[s.status]
+          return (
+            <div
+              key={s.key}
+              title={s.tooltip}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, border: `1px solid ${cc.border}`, background: cc.bg, color: cc.color, fontFamily: 'var(--font-mono)', fontSize: '0.78rem', cursor: 'help', whiteSpace: 'nowrap' }}
+            >
+              <span style={{ fontSize: '0.7rem' }}>
+                {s.status === 'ok' ? '✓' : s.status === 'warn' ? '⚠' : s.status === 'fail' ? '✗' : '·'}
+              </span>
+              <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.65 }}>{s.key}</span>
+              <span style={{ fontWeight: 600 }}>{s.val}</span>
+            </div>
+          )
+        })}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-desk-border/60">
-        <span className="text-xxs font-mono text-text-muted">Mark as:</span>
+      {/* ── State buttons ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', marginRight: 4 }}>Mark as:</span>
         {(['SETUP_CONFIRMED', 'INVALIDATED', 'TRADED', 'CANDIDATE'] as const).map(state => (
           <button
             key={state}
             disabled={isPending}
             onClick={e => { e.stopPropagation(); onStateChange(state) }}
-            className={`
-              px-3 py-1.5 rounded-lg text-xxs font-mono font-semibold border transition-all
-              ${c.candidateState === state
-                ? 'bg-accent/20 text-accent border-accent/40'
-                : 'bg-desk-surface text-text-secondary border-desk-border hover:border-accent/30 hover:text-accent hover:bg-accent/5'
-              }
-            `}
+            style={{
+              padding: '10px 20px',
+              borderRadius: 8,
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+              border: c.candidateState === state ? '1px solid rgba(77,159,255,0.5)' : '1px solid var(--border2)',
+              background: c.candidateState === state ? 'rgba(77,159,255,0.15)' : 'rgba(255,255,255,0.06)',
+              color: c.candidateState === state ? 'var(--blue)' : 'var(--text)',
+              cursor: isPending ? 'not-allowed' : 'pointer',
+              opacity: isPending ? 0.6 : 1,
+              transition: 'all 0.15s',
+            }}
           >
             {state.replace('_', ' ')}
           </button>
         ))}
-        {isPending && <span className="text-xxs text-text-muted font-mono animate-pulse ml-1">Saving…</span>}
+        {isPending && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', marginLeft: 4 }}>Saving…</span>}
       </div>
     </div>
   )
