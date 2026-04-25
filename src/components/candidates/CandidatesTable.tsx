@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Badge } from '@/components/ui/Badge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 interface Candidate {
@@ -31,23 +30,6 @@ interface Props {
   maxRows?:   number
 }
 
-const STATE_COLORS: Record<string, string> = {
-  CANDIDATE:       'text-text-secondary',
-  SETUP_CONFIRMED: 'text-gain',
-  INVALIDATED:     'text-loss line-through opacity-50',
-  TRADED:          'text-accent',
-  EXPIRED:         'text-text-muted opacity-50',
-  ARCHIVED:        'text-text-muted opacity-30',
-}
-
-// ── Verdict engine — mirrors the HTML prototype logic ──────────────────────
-
-interface VerdictResult {
-  v:     'ENTER' | 'WAIT' | 'SKIP'
-  label: string
-  text:  string
-}
-
 function calcEmaGap(ema20?: number | null, ema50?: number | null): number {
   if (!ema20 || !ema50 || ema50 === 0) return 0
   return ((ema20 - ema50) / ema50) * 100
@@ -60,40 +42,44 @@ function daysUntilEarnings(dateStr?: string | null): number {
   return Math.round((d.getTime() - Date.now()) / 86400000)
 }
 
+interface VerdictResult {
+  v:     'ENTER' | 'WAIT' | 'SKIP'
+  label: string
+  text:  string
+}
+
 function calcVerdict(c: Candidate): VerdictResult {
-  const emaGap  = calcEmaGap(c.ema20, c.ema50)
-  const rsi     = c.rsi ?? 0
+  const emaGap   = calcEmaGap(c.ema20, c.ema50)
+  const rsi      = c.rsi ?? 0
   const earnDays = daysUntilEarnings(c.earningsDate)
 
   if (c.price > 100 && (c.relVol ?? 0) < 0.8)
-    return { v: 'SKIP', label: 'Skip — account size constraint',
-      text: `At $${c.price.toFixed(2)}/share, position sizing is very tight at €700. Monitor for account scaling to €1,000+.` }
+    return { v: 'SKIP', label: 'Account size constraint',
+      text: `At $${c.price.toFixed(2)}/share, position sizing is very tight on €700. Monitor for account scaling to €1,000+.` }
 
   if (emaGap < 0.5)
-    return { v: 'WAIT', label: 'Wait — EMA gap too thin',
-      text: `EMA gap only ${emaGap.toFixed(1)}%. EMAs compressing — momentum is stalling. Wait for gap to expand before looking for a 1H entry.` }
+    return { v: 'WAIT', label: 'EMA gap too thin',
+      text: `EMA gap is only ${emaGap.toFixed(1)}% — EMAs are compressing, momentum stalling. Wait for gap to expand before looking for a 1H entry.` }
 
   if (earnDays >= 0 && earnDays <= 10)
-    return { v: 'SKIP', label: 'Skip — inside earnings blackout',
-      text: `Earnings in ${earnDays} days. Inside 10-day blackout window. Do not enter — pre-earnings pump risk is too high.` }
+    return { v: 'SKIP', label: 'Inside earnings blackout',
+      text: `Earnings in ${earnDays}d. Hard blackout — pre-earnings pump risk is too high. Do not enter.` }
 
   if (earnDays >= 11 && earnDays < 20)
-    return { v: 'WAIT', label: 'Wait — earnings approaching',
-      text: `Earnings in ${earnDays} days. Plan any entry carefully — must be fully out by day ${earnDays - 8} latest.` }
+    return { v: 'WAIT', label: 'Earnings approaching',
+      text: `Earnings in ${earnDays}d. Entry possible but must be fully out by day ${earnDays - 8} latest.` }
 
   if (rsi > 65)
-    return { v: 'WAIT', label: 'Wait — RSI elevated on daily',
-      text: `Daily RSI ${rsi.toFixed(1)} is warm. Wait for a 1H pullback to cool RSI below 60 before entry. Do not chase.` }
+    return { v: 'WAIT', label: 'RSI elevated on daily',
+      text: `Daily RSI ${rsi.toFixed(1)} is running hot. Wait for a 1H pullback to cool below 60. Do not chase.` }
 
   if (rsi < 52 && emaGap > 2)
     return { v: 'ENTER', label: 'Enter on 1H confirmation',
-      text: `RSI ${rsi.toFixed(1)} mid-pullback with clean EMA structure (gap ${emaGap.toFixed(1)}%). Drop to 1H — wait for EMA 20/50 retest that holds, RSI 45–65 and above its 9MA, and last 3 x 1H candles above average volume.` }
+      text: `RSI ${rsi.toFixed(1)} mid-pullback with clean EMA structure (${emaGap.toFixed(1)}% gap). Drop to 1H — EMA 20/50 retest + RSI 45–65 above 9MA + 3×1H candles above avg volume.` }
 
   return { v: 'ENTER', label: 'Enter on 1H confirmation',
-    text: `Clean daily setup. Drop to 1H — wait for EMA 20/50 retest that holds, RSI 45–65 and above its 9MA, and last 3 x 1H candles above average volume.` }
+    text: `Clean daily setup. Drop to 1H — wait for EMA 20/50 retest, RSI 45–65 above its 9MA, and last 3×1H candles above average volume.` }
 }
-
-// ── Level estimates (indicative — use structure on actual chart) ──────────
 
 interface Levels {
   entryLow:  number
@@ -104,122 +90,131 @@ interface Levels {
   rr:        number
   posEur:    number
   shares:    number
+  stopPct:   number
 }
 
 function calcLevels(c: Candidate): Levels {
-  const emaGap  = calcEmaGap(c.ema20, c.ema50)
-  const sd      = Math.max(0.025, Math.min(0.055, 0.03 + (emaGap / 100)))
+  const emaGap    = calcEmaGap(c.ema20, c.ema50)
+  const sd        = Math.max(0.025, Math.min(0.055, 0.03 + (emaGap / 100)))
   const entryLow  = c.price * 0.985
   const entryHigh = c.price * 0.997
-  const stop    = entryLow * (1 - sd)
-  const t1      = c.price * (1 + sd * 2.5)
-  const t2      = c.price * (1 + sd * 4)
-  const rr      = (t1 - entryLow) / (entryLow - stop)
-  const posEur  = Math.min(12 / sd, 595)
-  const shares  = Math.floor((posEur * 1.09) / c.price)
-  return { entryLow, entryHigh, stop, t1, t2, rr, posEur, shares }
+  const stop      = entryLow * (1 - sd)
+  const t1        = c.price * (1 + sd * 2.5)
+  const t2        = c.price * (1 + sd * 4)
+  const rr        = (t1 - entryLow) / (entryLow - stop)
+  const posEur    = Math.min(12 / sd, 595)
+  const shares    = Math.floor((posEur * 1.09) / c.price)
+  return { entryLow, entryHigh, stop, t1, t2, rr, posEur, shares, stopPct: sd * 100 }
 }
 
-// ── Signal checklist ──────────────────────────────────────────────────────
-
 interface Signal {
-  key:   string
-  val:   string
-  color: string
-  note:  string
+  key:     string
+  val:     string
+  status:  'ok' | 'warn' | 'fail' | 'neutral'
+  tooltip: string
 }
 
 function buildSignals(c: Candidate): Signal[] {
   const emaGap   = calcEmaGap(c.ema20, c.ema50)
   const earnDays = daysUntilEarnings(c.earningsDate)
-  const earnLabel = earnDays < 999
-    ? `${c.earningsRaw ?? c.earningsDate} · ${earnDays}d`
-    : 'No upcoming date'
+  const earnLabel = earnDays < 999 ? (c.earningsRaw ?? `${earnDays}d`) : 'Clear'
 
   return [
     {
-      key:   'EMA 20/50 gap · Daily',
-      val:   `${emaGap.toFixed(1)}%`,
-      color: emaGap < 1 ? 'text-warn' : emaGap > 8 ? 'text-warn' : 'text-gain',
-      note:  emaGap < 1
-        ? 'Too thin — EMAs compressing. Wait for gap to expand before 1H entry.'
+      key:    'EMA Gap',
+      val:    `${emaGap.toFixed(1)}%`,
+      status: emaGap < 1 ? 'warn' : emaGap > 8 ? 'warn' : 'ok',
+      tooltip: emaGap < 1
+        ? 'Too thin — EMAs compressing, momentum stalling. Wait for expansion.'
         : emaGap > 8
-          ? 'Extended — enter only on deep 1H pullback to 50 EMA, not 20 EMA.'
+          ? 'Extended — enter only on deep 1H pullback to 50 EMA, not 20.'
           : 'Daily trend confirmed. Drop to 1H and wait for EMA retest.',
     },
     {
-      key:   'RSI(14) · Daily',
-      val:   c.rsi != null ? c.rsi.toFixed(1) : '—',
-      color: c.rsi == null ? 'text-text-muted'
-        : c.rsi < 52 ? 'text-gain'
-        : c.rsi < 65 ? 'text-gain'
-        : 'text-warn',
-      note: c.rsi == null ? 'No RSI data.'
+      key:    'RSI',
+      val:    c.rsi != null ? c.rsi.toFixed(1) : '—',
+      status: c.rsi == null ? 'neutral' : c.rsi < 65 ? 'ok' : 'warn',
+      tooltip: c.rsi == null ? 'No RSI data.'
         : c.rsi < 52
-          ? 'Mid-pullback — most room to run. Still need 1H RSI 45–65 and above its 9MA at entry.'
+          ? 'Mid-pullback — most room to run. Still need 1H RSI 45–65 above 9MA at entry.'
           : c.rsi < 65
-            ? 'Mid-range — valid. Confirm 1H RSI 45–65 and rising at entry.'
-            : 'Warm — wait for 1H pullback. Do not enter when 1H RSI is also above 65.',
+            ? 'Mid-range. Confirm 1H RSI 45–65 and rising at entry.'
+            : 'Warm — wait for 1H pullback before entry.',
     },
     {
-      key:   'Relative volume · Daily',
-      val:   c.relVol != null ? `${c.relVol.toFixed(2)}×` : '—',
-      color: c.relVol == null ? 'text-text-muted'
-        : c.relVol >= 1.2 ? 'text-gain'
-        : c.relVol >= 0.8 ? 'text-text-secondary'
-        : 'text-loss',
-      note: c.relVol == null ? 'No volume data.'
+      key:    'Rel Vol',
+      val:    c.relVol != null ? `${c.relVol.toFixed(2)}×` : '—',
+      status: c.relVol == null ? 'neutral'
+        : c.relVol >= 1.2 ? 'ok'
+        : c.relVol >= 0.8 ? 'warn'
+        : 'fail',
+      tooltip: c.relVol == null ? 'No volume data.'
         : c.relVol >= 1.2
-          ? 'Above average. Still check avg of last 3 × 1H candles at entry moment.'
+          ? 'Above average. Still confirm last 3×1H candles at entry.'
           : c.relVol >= 0.8
-            ? 'Borderline. 1H volume confirmation required — avg of last 3 × 1H candles above 10D avg hourly.'
-            : 'Weak daily volume. Avg of last 3 × 1H candles must clearly exceed 10D average hourly volume.',
+            ? 'Borderline. Avg of last 3×1H candles must exceed 10D hourly avg.'
+            : 'Weak daily volume. 1H candles must clearly exceed 10D average hourly.',
     },
     {
-      key:   'Earnings date',
-      val:   earnLabel,
-      color: earnDays <= 10 ? 'text-loss'
-        : earnDays <= 20 ? 'text-warn'
-        : 'text-gain',
-      note: earnDays <= 10
-        ? `⚠ Inside blackout window — DO NOT enter. Earnings in ${earnDays} days.`
+      key:    'Earnings',
+      val:    earnLabel,
+      status: earnDays <= 10 ? 'fail' : earnDays <= 20 ? 'warn' : 'ok',
+      tooltip: earnDays <= 10
+        ? `Blackout — DO NOT enter. Earnings in ${earnDays}d.`
         : earnDays <= 20
-          ? `Earnings in ${earnDays} days. Must be fully out by day ${earnDays - 8} latest.`
+          ? `Earnings in ${earnDays}d. Must be out by day ${earnDays - 8} latest.`
           : 'Clear runway — no earnings pressure this week or next.',
     },
     {
-      key:   'Dist from 52W high',
-      val:   c.dist52wh != null ? `-${c.dist52wh.toFixed(1)}%` : '—',
-      color: c.dist52wh == null ? 'text-text-muted'
-        : c.dist52wh >= 3 && c.dist52wh <= 12 ? 'text-gain'
-        : 'text-warn',
-      note: c.dist52wh == null ? 'No 52W high data.'
+      key:    '52W Dist',
+      val:    c.dist52wh != null ? `-${c.dist52wh.toFixed(1)}%` : '—',
+      status: c.dist52wh == null ? 'neutral'
+        : c.dist52wh >= 3 && c.dist52wh <= 12 ? 'ok' : 'warn',
+      tooltip: c.dist52wh == null ? 'No 52W high data.'
         : c.dist52wh < 3
-          ? 'Too close to 52W high — potential ATH chase. Confirm breakout is genuine.'
+          ? 'Too close to 52W high — potential ATH chase.'
           : c.dist52wh <= 12
-            ? 'Sweet spot — enough room for momentum leg without being over-extended.'
-            : 'Further below 52W high — check daily chart for base structure quality.',
+            ? 'Sweet spot — room for momentum leg without being over-extended.'
+            : 'Further below 52W high — check daily for base structure quality.',
     },
     {
-      key:   '1W change',
-      val:   c.chg1w != null ? `${c.chg1w > 0 ? '+' : ''}${c.chg1w.toFixed(1)}%` : '—',
-      color: c.chg1w == null ? 'text-text-muted'
-        : c.chg1w > 20 ? 'text-loss'
-        : c.chg1w > 0 ? 'text-gain'
-        : 'text-warn',
-      note: c.chg1w == null ? 'No weekly change data.'
+      key:    '1W Chg',
+      val:    c.chg1w != null ? `${c.chg1w > 0 ? '+' : ''}${c.chg1w.toFixed(1)}%` : '—',
+      status: c.chg1w == null ? 'neutral'
+        : c.chg1w > 20 ? 'fail'
+        : c.chg1w > 0 ? 'ok'
+        : 'warn',
+      tooltip: c.chg1w == null ? 'No weekly change data.'
         : c.chg1w > 20
-          ? '⚠ Weekly spike above 20% — blow-off risk. This should have been filtered. Skip.'
+          ? 'Weekly spike >20% — blow-off risk. Skip.'
           : c.chg1w > 5
-            ? 'Strong weekly momentum — confirm it is not an extended blow-off on the daily chart.'
+            ? 'Strong weekly momentum — confirm not extended on daily.'
             : c.chg1w > 0
               ? 'Constructive weekly move — healthy momentum building.'
-              : 'Negative weekly change — daily trend still intact but watch for further weakness.',
+              : 'Negative weekly change — watch for further weakness.',
     },
   ]
 }
 
-// ── Main component ────────────────────────────────────────────────────────
+function StatusIcon({ status }: { status: Signal['status'] }) {
+  if (status === 'ok')   return <span className="text-gain text-xs">✓</span>
+  if (status === 'warn') return <span className="text-warn text-xs">⚠</span>
+  if (status === 'fail') return <span className="text-loss text-xs">✗</span>
+  return <span className="text-text-muted text-xs">·</span>
+}
+
+const STATUS_CHIP: Record<Signal['status'], string> = {
+  ok:      'border-gain/20  bg-gain/5   text-gain',
+  warn:    'border-warn/20  bg-warn/5   text-warn',
+  fail:    'border-loss/20  bg-loss/5   text-loss',
+  neutral: 'border-desk-border bg-desk-raised text-text-secondary',
+}
+
+const VERDICT_STYLE = {
+  ENTER: { banner: 'bg-gain/8  border-gain/25', label: 'text-gain',  badge: 'bg-gain/15 text-gain border-gain/25' },
+  WAIT:  { banner: 'bg-warn/8  border-warn/25', label: 'text-warn',  badge: 'bg-warn/15 text-warn border-warn/25' },
+  SKIP:  { banner: 'bg-loss/8  border-loss/25', label: 'text-loss',  badge: 'bg-loss/15 text-loss border-loss/25' },
+}
 
 export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -251,120 +246,81 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
         <table className="data-table">
           <thead>
             <tr>
-              <th className="w-8">#</th>
-              <th>Symbol</th>
-              <th>Price</th>
-              <th>RSI</th>
-              <th>EMA Stack</th>
-              <th>RelVol</th>
-              <th>Dist 52W</th>
-              <th>1W Chg</th>
-              <th>Sector</th>
+              <th className="w-8 text-center">#</th>
+              <th>Ticker</th>
+              <th className="text-right">Price</th>
+              <th className="text-right">RSI</th>
+              <th className="text-right">EMA Gap</th>
+              <th className="text-right">52W Dist</th>
               <th>Earnings</th>
-              <th>Score</th>
-              <th>Signal</th>
-              <th>State</th>
+              <th>Sector</th>
+              <th className="text-center">Signal</th>
               <th className="w-8"></th>
             </tr>
           </thead>
           <tbody>
             {displayed.map(c => {
-              const emaStack   = c.ema20 != null && c.ema50 != null && c.ema20 > c.ema50
-              const rsiColor   = c.rsi != null ? (c.rsi < 50 ? 'text-warn' : c.rsi < 65 ? 'text-gain' : 'text-text-secondary') : ''
-              const chgColor   = c.chg1w != null ? (c.chg1w > 0 ? 'text-gain' : 'text-loss') : ''
+              const emaGap     = calcEmaGap(c.ema20, c.ema50)
+              const earnDays   = daysUntilEarnings(c.earningsDate)
               const isExpanded = expandedId === c.id
               const verdict    = calcVerdict(c)
-              const earnDays   = daysUntilEarnings(c.earningsDate)
+              const isInactive = ['INVALIDATED', 'EXPIRED', 'ARCHIVED'].includes(c.candidateState)
 
-              const verdictBg = verdict.v === 'ENTER'
-                ? 'bg-gain/10 text-gain border-gain/20'
-                : verdict.v === 'WAIT'
-                  ? 'bg-warn/10 text-warn border-warn/20'
-                  : 'bg-loss/10 text-loss border-loss/20'
+              const rsiColor    = c.rsi != null
+                ? (c.rsi < 50 ? 'text-warn' : c.rsi < 65 ? 'text-gain' : 'text-text-secondary')
+                : 'text-text-muted'
+              const emaGapColor = emaGap < 1 ? 'text-warn' : emaGap > 8 ? 'text-warn' : 'text-gain'
+              const vs          = VERDICT_STYLE[verdict.v]
 
               return (
                 <>
                   <tr
                     key={c.id}
-                    className={`cursor-pointer ${STATE_COLORS[c.candidateState] ?? ''}`}
+                    className={`cursor-pointer transition-colors hover:bg-white/[0.025] ${isInactive ? 'opacity-40' : ''} ${isExpanded ? 'bg-white/[0.02]' : ''}`}
                     onClick={() => setExpandedId(isExpanded ? null : c.id)}
                   >
-                    {/* Rank */}
-                    <td>
-                      <span className="text-xxs font-mono text-text-muted tabular">{c.rank ?? '—'}</span>
+                    <td className="text-center">
+                      <span className="text-xxs font-mono text-text-muted">{c.rank ?? '—'}</span>
                     </td>
-
-                    {/* Symbol */}
                     <td>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold text-ticker text-sm">{c.sym}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-semibold text-ticker text-sm tracking-wide">{c.sym}</span>
                         {c.rank != null && c.rank <= 3 && (
-                          <span className="text-xxs font-mono text-warn">TOP</span>
+                          <span className="text-xxs font-mono bg-warn/10 text-warn border border-warn/20 px-1.5 py-0.5 rounded-md leading-none">TOP</span>
+                        )}
+                        {c.candidateState === 'SETUP_CONFIRMED' && (
+                          <span className="text-xxs font-mono bg-gain/10 text-gain border border-gain/20 px-1.5 py-0.5 rounded-md leading-none">✓</span>
+                        )}
+                        {c.candidateState === 'TRADED' && (
+                          <span className="text-xxs font-mono bg-accent/10 text-accent border border-accent/20 px-1.5 py-0.5 rounded-md leading-none">T</span>
                         )}
                       </div>
                       {c.description && (
-                        <div className="text-xxs text-text-muted truncate max-w-[140px]">{c.description}</div>
+                        <div className="text-xxs text-text-muted truncate max-w-[150px] mt-0.5 leading-none">{c.description}</div>
                       )}
                     </td>
-
-                    {/* Price */}
-                    <td>
+                    <td className="text-right">
                       <span className="font-mono tabular text-sm">${c.price.toFixed(2)}</span>
                     </td>
-
-                    {/* RSI */}
-                    <td>
+                    <td className="text-right">
                       {c.rsi != null
-                        ? <span className={`font-mono tabular text-sm ${rsiColor}`}>{c.rsi.toFixed(1)}</span>
-                        : <span className="text-text-muted">—</span>}
+                        ? <span className={`font-mono tabular text-sm font-semibold ${rsiColor}`}>{c.rsi.toFixed(1)}</span>
+                        : <span className="text-text-muted text-sm">—</span>}
                     </td>
-
-                    {/* EMA stack */}
-                    <td>
-                      {c.ema20 != null && c.ema50 != null ? (
-                        <span className={`text-xs font-mono ${emaStack ? 'text-gain' : 'text-loss'}`}>
-                          {emaStack ? '↑ Stack' : '↓ Cross'}
-                        </span>
-                      ) : <span className="text-text-muted">—</span>}
+                    <td className="text-right">
+                      {c.ema20 != null && c.ema50 != null
+                        ? <span className={`font-mono tabular text-sm font-semibold ${emaGapColor}`}>{emaGap.toFixed(1)}%</span>
+                        : <span className="text-text-muted text-sm">—</span>}
                     </td>
-
-                    {/* Rel Vol */}
-                    <td>
-                      {c.relVol != null ? (
-                        <span className={`font-mono tabular text-sm ${c.relVol >= 1.5 ? 'text-gain' : c.relVol < 0.9 ? 'text-warn' : 'text-text-secondary'}`}>
-                          {c.relVol.toFixed(1)}×
-                        </span>
-                      ) : <span className="text-text-muted">—</span>}
-                    </td>
-
-                    {/* Dist 52W */}
-                    <td>
+                    <td className="text-right">
                       {c.dist52wh != null
                         ? <span className="font-mono tabular text-sm text-text-secondary">-{c.dist52wh.toFixed(1)}%</span>
-                        : <span className="text-text-muted">—</span>}
+                        : <span className="text-text-muted text-sm">—</span>}
                     </td>
-
-                    {/* 1W change */}
-                    <td>
-                      {c.chg1w != null ? (
-                        <span className={`font-mono tabular text-sm ${chgColor}`}>
-                          {c.chg1w > 0 ? '+' : ''}{c.chg1w.toFixed(1)}%
-                        </span>
-                      ) : <span className="text-text-muted">—</span>}
-                    </td>
-
-                    {/* Sector */}
-                    <td>
-                      {c.sector
-                        ? <span className="text-xs text-text-muted truncate max-w-[100px] block">{c.sector}</span>
-                        : <span className="text-text-muted">—</span>}
-                    </td>
-
-                    {/* Earnings — colour-coded warning */}
                     <td>
                       {c.earningsDate ? (
                         <span className={`text-xs font-mono ${
-                          earnDays <= 10 ? 'text-loss font-semibold' :
+                          earnDays <= 10 ? 'text-loss font-bold' :
                           earnDays <= 20 ? 'text-warn' : 'text-text-muted'
                         }`}>
                           {earnDays <= 10 && '⚠ '}
@@ -377,51 +333,27 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                         <span className="text-gain text-xs font-mono">Clear</span>
                       )}
                     </td>
-
-                    {/* Score */}
                     <td>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-12 bg-desk-muted rounded-full h-1 overflow-hidden">
-                          <div
-                            className="h-full bg-accent rounded-full"
-                            style={{ width: `${Math.min(100, (c.score / 80) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xxs font-mono tabular text-text-muted">{c.score.toFixed(0)}</span>
-                      </div>
+                      <span className="text-xxs text-text-muted truncate max-w-[90px] block">{c.sector ?? '—'}</span>
                     </td>
-
-                    {/* Signal badge */}
-                    <td>
-                      <span className={`text-xxs font-mono font-semibold px-2 py-0.5 rounded border ${verdictBg}`}>
+                    <td className="text-center">
+                      <span className={`text-xxs font-mono font-bold px-2.5 py-1 rounded-md border ${vs.badge}`}>
                         {verdict.v}
                       </span>
                     </td>
-
-                    {/* State */}
-                    <td>
-                      <Badge variant={
-                        c.candidateState === 'SETUP_CONFIRMED' ? 'gain' :
-                        c.candidateState === 'INVALIDATED'     ? 'loss' :
-                        c.candidateState === 'TRADED'          ? 'accent' : 'muted'
-                      }>
-                        {c.candidateState.replace('_', ' ')}
-                      </Badge>
-                    </td>
-
-                    {/* Expand toggle */}
-                    <td>
+                    <td className="text-center">
                       <span className="text-text-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
                     </td>
                   </tr>
 
-                  {/* ── Expanded verdict panel ── */}
                   {isExpanded && (
-                    <tr key={`${c.id}-exp`} className="bg-desk-raised/30">
-                      <td colSpan={14} className="px-5 py-4">
-                        <VerdictPanel candidate={c} onStateChange={(state) => {
-                          updateState.mutate({ id: c.id, state })
-                        }} isPending={updateState.isPending} />
+                    <tr key={`${c.id}-exp`}>
+                      <td colSpan={10} className="p-0">
+                        <VerdictPanel
+                          candidate={c}
+                          onStateChange={state => updateState.mutate({ id: c.id, state })}
+                          isPending={updateState.isPending}
+                        />
                       </td>
                     </tr>
                   )}
@@ -443,12 +375,8 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
   )
 }
 
-// ── Verdict panel component ───────────────────────────────────────────────
-
 function VerdictPanel({
-  candidate,
-  onStateChange,
-  isPending,
+  candidate, onStateChange, isPending,
 }: {
   candidate:     Candidate
   onStateChange: (state: string) => void
@@ -458,96 +386,90 @@ function VerdictPanel({
   const verdict = calcVerdict(c)
   const levels  = calcLevels(c)
   const signals = buildSignals(c)
-
-  const verdictStyles = {
-    ENTER: { border: 'border-gain/30', bg: 'bg-gain/5',  label: 'text-gain',  bar: 'bg-gain' },
-    WAIT:  { border: 'border-warn/30', bg: 'bg-warn/5',  label: 'text-warn',  bar: 'bg-warn' },
-    SKIP:  { border: 'border-loss/30', bg: 'bg-loss/5',  label: 'text-loss',  bar: 'bg-loss' },
-  }[verdict.v]
+  const vs      = VERDICT_STYLE[verdict.v]
 
   return (
-    <div className="space-y-4">
+    <div className="px-5 py-4 space-y-3 border-t border-desk-border bg-desk-raised/30 animate-slide-up">
 
-      {/* ── Levels row ── */}
-      <div className="grid grid-cols-3 gap-3">
-        <LevelTile
-          label="Entry zone (indicative)"
-          value={`$${levels.entryLow.toFixed(2)} – $${levels.entryHigh.toFixed(2)}`}
-          sub="1H EMA 20/50 retest zone — confirm on chart"
-        />
-        <LevelTile
-          label="Stop · T1 · T2 (indicative)"
-          value={`$${levels.stop.toFixed(2)}`}
-          valueColor="text-loss"
-          sub={`T1: $${levels.t1.toFixed(2)}   T2: $${levels.t2.toFixed(2)}`}
-          subColor="text-gain"
-        />
-        <LevelTile
-          label="Size · Risk · R:R"
-          value={`€${Math.round(levels.posEur)} · ~${levels.shares} shares`}
-          sub={`Risk €12 · R:R ${levels.rr.toFixed(1)}:1 ${levels.rr < 2 ? '⚠ below 2:1 minimum' : ''}`}
-          subColor={levels.rr < 2 ? 'text-loss' : 'text-warn'}
-        />
+      <div className={`rounded-xl border px-5 py-3.5 flex items-center gap-4 ${vs.banner}`}>
+        <div className={`text-2xl font-mono font-black tracking-widest shrink-0 ${vs.label}`}>
+          {verdict.v}
+        </div>
+        <div className="w-px h-8 bg-white/10 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className={`text-xs font-mono font-semibold uppercase tracking-widest mb-0.5 ${vs.label} opacity-80`}>
+            {verdict.label}
+          </div>
+          <div className="text-sm text-text-secondary leading-relaxed">{verdict.text}</div>
+        </div>
       </div>
 
-      {/* ── Signal checklist ── */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2.5">
+        <div className="bg-desk-surface border border-desk-border rounded-xl p-4">
+          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Entry Zone</div>
+          <div className="font-mono text-lg font-bold text-text-primary leading-tight">${levels.entryLow.toFixed(2)}</div>
+          <div className="font-mono text-sm text-text-secondary mt-0.5">– ${levels.entryHigh.toFixed(2)}</div>
+          <div className="text-xxs font-mono text-text-muted mt-2">1H EMA retest — confirm on chart</div>
+        </div>
+
+        <div className="bg-desk-surface border border-loss/15 rounded-xl p-4">
+          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Stop</div>
+          <div className="font-mono text-lg font-bold text-loss leading-tight">${levels.stop.toFixed(2)}</div>
+          <div className="font-mono text-sm text-loss/50 mt-0.5">-{levels.stopPct.toFixed(1)}% from entry</div>
+          <div className="text-xxs font-mono text-text-muted mt-2">Structure-based, not fixed %</div>
+        </div>
+
+        <div className="bg-desk-surface border border-gain/15 rounded-xl p-4">
+          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Targets</div>
+          <div className="font-mono text-lg font-bold text-gain leading-tight">T1 ${levels.t1.toFixed(2)}</div>
+          <div className="font-mono text-sm text-gain/60 mt-0.5">T2 ${levels.t2.toFixed(2)}</div>
+          <div className="text-xxs font-mono text-text-muted mt-2">Take 50–60% at T1, trail rest</div>
+        </div>
+
+        <div className={`bg-desk-surface border rounded-xl p-4 ${levels.rr < 2 ? 'border-loss/15' : 'border-desk-border'}`}>
+          <div className="text-xxs font-mono text-text-muted uppercase tracking-wider mb-2">Position / Risk</div>
+          <div className="font-mono text-lg font-bold text-text-primary leading-tight">€{Math.round(levels.posEur)}</div>
+          <div className="font-mono text-sm text-text-secondary mt-0.5">~{levels.shares} shares</div>
+          <div className={`text-xs font-mono font-semibold mt-2 ${levels.rr < 2 ? 'text-loss' : 'text-gain'}`}>
+            R:R {levels.rr.toFixed(1)}:1{levels.rr < 2 ? ' ⚠' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
         {signals.map(s => (
-          <div key={s.key} className="bg-desk-surface border border-desk-border rounded-lg p-3">
-            <div className="text-xxs text-text-muted uppercase tracking-wider font-mono mb-1">{s.key}</div>
-            <div className={`font-mono text-sm font-semibold mb-1 ${s.color}`}>{s.val}</div>
-            <div className="text-xxs text-text-muted leading-relaxed">{s.note}</div>
+          <div
+            key={s.key}
+            title={s.tooltip}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono cursor-help hover:opacity-90 transition-opacity ${STATUS_CHIP[s.status]}`}
+          >
+            <StatusIcon status={s.status} />
+            <span className="text-xxs uppercase tracking-wider opacity-60 mr-0.5">{s.key}</span>
+            <span className="font-semibold">{s.val}</span>
           </div>
         ))}
       </div>
 
-      {/* ── Verdict block ── */}
-      <div className={`rounded-lg border-l-4 p-3 ${verdictStyles.border} ${verdictStyles.bg}`}>
-        <div className={`text-xxs font-mono font-semibold uppercase tracking-widest mb-1 ${verdictStyles.label}`}>
-          {verdict.label}
-        </div>
-        <div className="text-xs text-text-secondary leading-relaxed">{verdict.text}</div>
-      </div>
-
-      {/* ── State actions ── */}
-      <div className="flex items-center gap-2 flex-wrap pt-1">
-        <span className="text-xxs font-mono text-text-muted mr-1">Mark as:</span>
+      <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-desk-border/60">
+        <span className="text-xxs font-mono text-text-muted">Mark as:</span>
         {(['SETUP_CONFIRMED', 'INVALIDATED', 'TRADED', 'CANDIDATE'] as const).map(state => (
           <button
             key={state}
             disabled={isPending}
             onClick={e => { e.stopPropagation(); onStateChange(state) }}
             className={`
-              px-2.5 py-1 rounded text-xxs font-mono font-semibold border transition-colors
+              px-3 py-1.5 rounded-lg text-xxs font-mono font-semibold border transition-all
               ${c.candidateState === state
-                ? 'bg-accent/20 text-accent border-accent/30'
-                : 'bg-desk-raised text-text-secondary border-desk-border hover:border-accent/30 hover:text-accent'
+                ? 'bg-accent/20 text-accent border-accent/40'
+                : 'bg-desk-surface text-text-secondary border-desk-border hover:border-accent/30 hover:text-accent hover:bg-accent/5'
               }
             `}
           >
             {state.replace('_', ' ')}
           </button>
         ))}
+        {isPending && <span className="text-xxs text-text-muted font-mono animate-pulse ml-1">Saving…</span>}
       </div>
-    </div>
-  )
-}
-
-function LevelTile({
-  label, value, valueColor = 'text-text-primary',
-  sub, subColor = 'text-text-muted',
-}: {
-  label:       string
-  value:       string
-  valueColor?: string
-  sub:         string
-  subColor?:   string
-}) {
-  return (
-    <div className="bg-desk-surface border border-desk-border rounded-lg p-3">
-      <div className="text-xxs text-text-muted uppercase tracking-wider font-mono mb-2">{label}</div>
-      <div className={`font-mono text-sm font-semibold ${valueColor}`}>{value}</div>
-      <div className={`font-mono text-xxs mt-1 ${subColor}`}>{sub}</div>
     </div>
   )
 }
