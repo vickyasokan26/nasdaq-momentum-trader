@@ -304,20 +304,17 @@ function CreateTradeModal({ open, onClose, onCreated }: {
     })
   }
 
-  const inputCls = 'w-full bg-desk-raised border border-desk-border rounded-lg px-3 py-2 text-sm font-mono text-text-primary focus:outline-none focus:border-accent'
-  const labelCls = 'block text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-1'
-
   return (
     <Modal open={open} onClose={onClose} title="Log Trade" width="max-w-2xl">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Symbol</label>
-            <input {...register('sym', { required: true })} className={inputCls} placeholder="AAPL" />
+      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="modal-grid-2">
+          <div className="modal-field">
+            <label className="modal-label">Symbol</label>
+            <input {...register('sym', { required: true })} className="modal-input" placeholder="AAPL" />
           </div>
-          <div>
-            <label className={labelCls}>Setup Quality</label>
-            <select {...register('setupQuality')} className={inputCls}>
+          <div className="modal-field">
+            <label className="modal-label">Setup Quality</label>
+            <select {...register('setupQuality')} className="modal-input">
               <option value="">Select…</option>
               <option value="HIGH">HIGH</option>
               <option value="MEDIUM">MEDIUM</option>
@@ -326,81 +323,70 @@ function CreateTradeModal({ open, onClose, onCreated }: {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className={labelCls}>Entry Price $</label>
-            <input {...register('entryPrice', { required: true })} type="number" step="0.01" className={inputCls} placeholder="0.00" />
+        <div className="modal-grid-3">
+          <div className="modal-field">
+            <label className="modal-label">Entry Price $</label>
+            <input {...register('entryPrice', { required: true })} type="number" step="0.01" className="modal-input" placeholder="0.00" />
           </div>
-          <div>
-            <label className={labelCls}>Stop Price $</label>
-            <input {...register('stopPrice', { required: true })} type="number" step="0.01" className={`${inputCls} border-loss/30`} placeholder="0.00" />
+          <div className="modal-field">
+            <label className="modal-label">Stop Price $</label>
+            <input {...register('stopPrice', { required: true })} type="number" step="0.01" className="modal-input" placeholder="0.00" style={{ borderColor: 'rgba(255,77,109,0.35)' }} />
           </div>
-          <div>
-            <label className={labelCls}>Target 1 $</label>
-            <input {...register('t1Price', { required: true })} type="number" step="0.01" className={`${inputCls} border-gain/30`} placeholder="0.00" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className={labelCls}>Target 2 $ (opt)</label>
-            <input {...register('t2Price')} type="number" step="0.01" className={inputCls} placeholder="0.00" />
-          </div>
-          <div>
-            <label className={labelCls}>Risk €</label>
-            <input {...register('riskEur', { required: true })} type="number" step="0.01" className={`${inputCls} border-warn/30`} placeholder="12.00" defaultValue="12" />
-          </div>
-          <div>
-            <label className={labelCls}>Shares</label>
-            <input {...register('shares', { required: true })} type="number" className={inputCls} placeholder="0" />
+          <div className="modal-field">
+            <label className="modal-label">Target 1 $</label>
+            <input {...register('t1Price', { required: true })} type="number" step="0.01" className="modal-input" placeholder="0.00" style={{ borderColor: 'rgba(0,214,124,0.35)' }} />
           </div>
         </div>
 
-        <div>
-          <label className={labelCls}>Notes (optional)</label>
-          <textarea {...register('notes')} rows={2} className={`${inputCls} resize-none`} placeholder="Entry thesis, observations…" />
+        <div className="modal-grid-3">
+          <div className="modal-field">
+            <label className="modal-label">Target 2 $ (opt)</label>
+            <input {...register('t2Price')} type="number" step="0.01" className="modal-input" placeholder="0.00" />
+          </div>
+          <div className="modal-field">
+            <label className="modal-label">Risk €</label>
+            <input {...register('riskEur', { required: true })} type="number" step="0.01" className="modal-input" placeholder="12.00" defaultValue="12" style={{ borderColor: 'rgba(245,166,35,0.35)' }} />
+          </div>
+          <div className="modal-field">
+            <label className="modal-label">Shares</label>
+            <input {...register('shares', { required: true })} type="number" className="modal-input" placeholder="0" />
+          </div>
         </div>
 
-        {/* Warnings */}
+        <div className="modal-field">
+          <label className="modal-label">Notes (optional)</label>
+          <textarea {...register('notes')} rows={2} className="modal-input" style={{ resize: 'none' }} placeholder="Entry thesis, observations…" />
+        </div>
+
         {warnings.length > 0 && (
-          <div className="bg-warn/5 border border-warn/20 rounded-lg px-3 py-2.5 space-y-1">
+          <div style={{ background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.25)', borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {warnings.map((w, i) => (
-              <p key={i} className="text-xs font-mono text-warn">⚠ {w}</p>
+              <p key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--amber)' }}>⚠ {w}</p>
             ))}
           </div>
         )}
 
-        {/* Rule breaks — require confirmation */}
         {ruleBreaks.length > 0 && (
-          <div className="bg-loss/5 border border-loss/30 rounded-lg px-3 py-2.5 space-y-1">
-            <p className="text-sm font-mono font-semibold text-loss mb-1">Rule violations detected:</p>
-            {ruleBreaks.map((r, i) => <p key={i} className="text-xs font-mono text-loss">✗ {r}</p>)}
-            <p className="text-xxs font-mono text-text-muted mt-2">
-              Log anyway? This will be recorded in trade history.
-            </p>
-            <button
-              type="button"
-              onClick={() => { setRuleBreaks([]); onCreated() }}
-              className="mt-1 text-xxs font-mono text-loss hover:text-red-300 underline"
-            >
-              Accept & log despite violations
+          <div style={{ background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.25)', borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--red)', marginBottom: 4 }}>Rule violations detected:</p>
+            {ruleBreaks.map((r, i) => <p key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--red)' }}>✗ {r}</p>)}
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', marginTop: 4 }}>Log anyway? This will be recorded in trade history.</p>
+            <button type="button" onClick={() => { setRuleBreaks([]); onCreated() }}
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, textAlign: 'left', marginTop: 2 }}>
+              Accept &amp; log despite violations
             </button>
           </div>
         )}
 
         {apiError && (
-          <div className="bg-loss/5 border border-loss/30 rounded-lg px-3 py-2.5">
-            <p className="text-sm font-mono text-loss">{apiError}</p>
+          <div style={{ background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.25)', borderRadius: 8, padding: '10px 14px' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--red)' }}>{apiError}</p>
           </div>
         )}
 
-        <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 bg-desk-raised border border-desk-border text-text-secondary text-sm font-semibold py-2.5 rounded-lg hover:text-text-primary transition-colors">
-            Cancel
-          </button>
-          <button type="submit" disabled={mutation.isPending}
-            className="flex-1 bg-accent hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">
+        <div className="modal-row">
+          <button type="button" onClick={onClose} className="modal-btn modal-btn-cancel">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="modal-btn modal-btn-primary">
             {mutation.isPending ? 'Logging…' : 'Log Trade'}
           </button>
         </div>
@@ -488,43 +474,30 @@ function EditTradeModal({ trade, onClose, onSaved }: {
     })
   }
 
-  const inputCls = 'w-full bg-desk-raised border border-desk-border rounded-lg px-3 py-2 text-sm font-mono text-text-primary focus:outline-none focus:border-accent disabled:opacity-40 disabled:cursor-not-allowed'
-  const labelCls = 'block text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-1'
-
   return (
     <Modal open onClose={onClose} title={`Edit ${trade.sym}`} width="max-w-2xl">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {isClosed && (
-          <div className="bg-desk-raised border border-desk-border rounded-lg px-3 py-2.5">
-            <p className="text-xs font-mono text-text-muted">
+          <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text3)' }}>
               Trade is closed — financial fields are locked. You can update notes and setup quality.
             </p>
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className={labelCls}>Symbol</label>
-            <input
-              {...register('sym', { required: !isClosed })}
-              className={inputCls}
-              disabled={isClosed}
-              placeholder="AAPL"
-            />
+        <div className="modal-grid-3">
+          <div className="modal-field">
+            <label className="modal-label">Symbol</label>
+            <input {...register('sym', { required: !isClosed })} className="modal-input" disabled={isClosed} placeholder="AAPL" />
           </div>
-          <div>
-            <label className={labelCls}>Trade Date</label>
-            <input
-              {...register('tradeDate', { required: !isClosed })}
-              type="date"
-              className={inputCls}
-              disabled={isClosed}
-            />
+          <div className="modal-field">
+            <label className="modal-label">Trade Date</label>
+            <input {...register('tradeDate', { required: !isClosed })} type="date" className="modal-input" disabled={isClosed} />
           </div>
-          <div>
-            <label className={labelCls}>Setup Quality</label>
-            <select {...register('setupQuality')} className={inputCls}>
+          <div className="modal-field">
+            <label className="modal-label">Setup Quality</label>
+            <select {...register('setupQuality')} className="modal-input">
               <option value="">Select…</option>
               <option value="HIGH">HIGH</option>
               <option value="MEDIUM">MEDIUM</option>
@@ -533,89 +506,50 @@ function EditTradeModal({ trade, onClose, onSaved }: {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className={labelCls}>Entry Price $</label>
-            <input
-              {...register('entryPrice', { required: !isClosed })}
-              type="number" step="0.01"
-              className={inputCls}
-              disabled={isClosed}
-            />
+        <div className="modal-grid-3">
+          <div className="modal-field">
+            <label className="modal-label">Entry Price $</label>
+            <input {...register('entryPrice', { required: !isClosed })} type="number" step="0.01" className="modal-input" disabled={isClosed} />
           </div>
-          <div>
-            <label className={labelCls}>Stop Price $</label>
-            <input
-              {...register('stopPrice', { required: !isClosed })}
-              type="number" step="0.01"
-              className={`${inputCls} border-loss/30`}
-              disabled={isClosed}
-            />
+          <div className="modal-field">
+            <label className="modal-label">Stop Price $</label>
+            <input {...register('stopPrice', { required: !isClosed })} type="number" step="0.01" className="modal-input" disabled={isClosed} style={{ borderColor: 'rgba(255,77,109,0.35)' }} />
           </div>
-          <div>
-            <label className={labelCls}>Target 1 $</label>
-            <input
-              {...register('t1Price', { required: !isClosed })}
-              type="number" step="0.01"
-              className={`${inputCls} border-gain/30`}
-              disabled={isClosed}
-            />
+          <div className="modal-field">
+            <label className="modal-label">Target 1 $</label>
+            <input {...register('t1Price', { required: !isClosed })} type="number" step="0.01" className="modal-input" disabled={isClosed} style={{ borderColor: 'rgba(0,214,124,0.35)' }} />
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className={labelCls}>Target 2 $ (opt)</label>
-            <input
-              {...register('t2Price')}
-              type="number" step="0.01"
-              className={inputCls}
-              disabled={isClosed}
-            />
+        <div className="modal-grid-3">
+          <div className="modal-field">
+            <label className="modal-label">Target 2 $ (opt)</label>
+            <input {...register('t2Price')} type="number" step="0.01" className="modal-input" disabled={isClosed} />
           </div>
-          <div>
-            <label className={labelCls}>Risk €</label>
-            <input
-              {...register('riskEur', { required: !isClosed })}
-              type="number" step="0.01"
-              className={`${inputCls} border-warn/30`}
-              disabled={isClosed}
-            />
+          <div className="modal-field">
+            <label className="modal-label">Risk €</label>
+            <input {...register('riskEur', { required: !isClosed })} type="number" step="0.01" className="modal-input" disabled={isClosed} style={{ borderColor: 'rgba(245,166,35,0.35)' }} />
           </div>
-          <div>
-            <label className={labelCls}>Shares</label>
-            <input
-              {...register('shares', { required: !isClosed })}
-              type="number"
-              className={inputCls}
-              disabled={isClosed}
-            />
+          <div className="modal-field">
+            <label className="modal-label">Shares</label>
+            <input {...register('shares', { required: !isClosed })} type="number" className="modal-input" disabled={isClosed} />
           </div>
         </div>
 
-        <div>
-          <label className={labelCls}>Notes</label>
-          <textarea
-            {...register('notes')}
-            rows={3}
-            className={`${inputCls} resize-none`}
-            placeholder="Entry thesis, observations, corrections…"
-          />
+        <div className="modal-field">
+          <label className="modal-label">Notes</label>
+          <textarea {...register('notes')} rows={3} className="modal-input" style={{ resize: 'none' }} placeholder="Entry thesis, observations, corrections…" />
         </div>
 
         {apiError && (
-          <div className="bg-loss/5 border border-loss/30 rounded-lg px-3 py-2.5">
-            <p className="text-sm font-mono text-loss">✗ {apiError}</p>
+          <div style={{ background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.25)', borderRadius: 8, padding: '10px 14px' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--red)' }}>✗ {apiError}</p>
           </div>
         )}
 
-        <div className="flex gap-3 pt-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 bg-desk-raised border border-desk-border text-text-secondary text-sm font-semibold py-2.5 rounded-lg hover:text-text-primary transition-colors">
-            Cancel
-          </button>
-          <button type="submit" disabled={mutation.isPending}
-            className="flex-1 bg-accent hover:bg-indigo-400 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">
+        <div className="modal-row">
+          <button type="button" onClick={onClose} className="modal-btn modal-btn-cancel">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="modal-btn modal-btn-primary">
             {mutation.isPending ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
@@ -649,43 +583,43 @@ function CloseTradeModal({ trade, onClose, onClosed }: {
     ? (parseFloat(exitPrice) - trade.entryPrice) * trade.shares
     : null
 
+  const confirmCls = `modal-btn ${pnlPreview != null && pnlPreview >= 0 ? 'modal-btn-gain' : 'modal-btn-loss'}`
+
   return (
     <Modal open onClose={onClose} title={`Close ${trade.sym}`}>
-      <div className="space-y-4">
-        {/* Trade info */}
-        <div className="bg-desk-raised rounded-lg px-3 py-2.5 grid grid-cols-3 gap-2 text-xs font-mono">
-          <div><span className="text-text-muted">Entry: </span><span className="text-text-primary">${trade.entryPrice.toFixed(2)}</span></div>
-          <div><span className="text-text-muted">Stop: </span><span className="text-loss">${trade.stopPrice.toFixed(2)}</span></div>
-          <div><span className="text-text-muted">T1: </span><span className="text-gain">${trade.t1Price.toFixed(2)}</span></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Trade info strip */}
+        <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+          <div><span style={{ color: 'var(--text3)' }}>Entry </span><span style={{ color: 'var(--text)' }}>${trade.entryPrice.toFixed(2)}</span></div>
+          <div><span style={{ color: 'var(--text3)' }}>Stop </span><span style={{ color: 'var(--red)' }}>${trade.stopPrice.toFixed(2)}</span></div>
+          <div><span style={{ color: 'var(--text3)' }}>T1 </span><span style={{ color: 'var(--green)' }}>${trade.t1Price.toFixed(2)}</span></div>
         </div>
 
-        <div>
-          <label className="block text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-1">Exit Price $</label>
+        <div className="modal-field">
+          <label className="modal-label">Exit Price $</label>
           <input
             type="number" step="0.01"
             value={exitPrice}
             onChange={e => setExitPrice(e.target.value)}
-            className="w-full bg-desk-raised border border-desk-border rounded-lg px-3 py-2.5 text-sm font-mono text-text-primary focus:outline-none focus:border-accent"
+            className="modal-input"
             placeholder="0.00"
+            autoFocus
           />
         </div>
 
         {pnlPreview != null && (
-          <div className={`text-center text-xl font-mono font-semibold tabular ${pnlPreview >= 0 ? 'text-gain' : 'text-loss'}`}>
+          <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '1.5rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: pnlPreview >= 0 ? 'var(--green)' : 'var(--red)' }}>
             {pnlPreview >= 0 ? '+' : ''}€{pnlPreview.toFixed(2)}
-            <span className="text-xs text-text-muted ml-2">
+            <span style={{ fontSize: '0.8rem', color: 'var(--text3)', marginLeft: 8 }}>
               ({pnlPreview >= 0 ? '+' : ''}{(pnlPreview / trade.riskEur).toFixed(1)}R)
             </span>
           </div>
         )}
 
-        <div>
-          <label className="block text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-1">Exit Reason</label>
-          <select
-            value={exitReason}
-            onChange={e => setExitReason(e.target.value)}
-            className="w-full bg-desk-raised border border-desk-border rounded-lg px-3 py-2 text-sm font-mono text-text-primary focus:outline-none focus:border-accent"
-          >
+        <div className="modal-field">
+          <label className="modal-label">Exit Reason</label>
+          <select value={exitReason} onChange={e => setExitReason(e.target.value)} className="modal-input">
             <option value="STOP_HIT">Stop Hit</option>
             <option value="TARGET_1">Target 1 Hit</option>
             <option value="TARGET_2">Target 2 Hit</option>
@@ -696,19 +630,16 @@ function CloseTradeModal({ trade, onClose, onClosed }: {
           </select>
         </div>
 
-        {apiError && <p className="text-sm font-mono text-loss">{apiError}</p>}
+        {apiError && (
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--red)' }}>{apiError}</p>
+        )}
 
-        <div className="flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 bg-desk-raised border border-desk-border text-text-secondary text-sm font-semibold py-2.5 rounded-lg hover:text-text-primary">
-            Cancel
-          </button>
+        <div className="modal-row">
+          <button onClick={onClose} className="modal-btn modal-btn-cancel">Cancel</button>
           <button
             onClick={() => mutation.mutate()}
             disabled={!exitPrice || mutation.isPending}
-            className={`flex-1 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 ${
-              pnlPreview != null && pnlPreview >= 0 ? 'bg-gain hover:bg-emerald-400' : 'bg-loss hover:bg-red-400'
-            }`}
+            className={confirmCls}
           >
             {mutation.isPending ? 'Closing…' : 'Confirm Close'}
           </button>

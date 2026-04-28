@@ -201,3 +201,57 @@ html, body {
   font-size: 0.875rem;
 }
 .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ── Modal / Form ───────────────────────────────────────────── */
+.modal-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.modal-input:focus  { border-color: var(--blue); }
+.modal-input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.modal-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 5px;
+}
+
+.modal-btn {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  border: none;
+}
+.modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.modal-btn-cancel   { background: var(--bg3); border: 1px solid var(--border2); color: var(--text2); }
+.modal-btn-cancel:hover { color: var(--text); }
+.modal-btn-primary  { background: var(--blue);  color: #fff; }
+.modal-btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.modal-btn-gain     { background: var(--green); color: #111; }
+.modal-btn-gain:hover:not(:disabled) { opacity: 0.85; }
+.modal-btn-loss     { background: var(--red);   color: #fff; }
+.modal-btn-loss:hover:not(:disabled) { opacity: 0.85; }
+
+.modal-field { display: flex; flex-direction: column; }
+.modal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.modal-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.modal-row    { display: flex; gap: 12px; padding-top: 8px; }
