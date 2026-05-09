@@ -38,6 +38,12 @@ export default function TradesPage() {
     queryFn:  () => fetch('/api/trades').then(r => r.json()),
   })
 
+  const deleteTrade = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/trades?id=${id}`, { method: 'DELETE' }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trades', 'pnl'] }),
+  })
+
   const trades: Trade[] = data?.trades ?? []
   const open   = trades.filter(t => t.status === 'OPEN')
   const closed = trades.filter(t => t.status === 'CLOSED')
@@ -99,6 +105,7 @@ export default function TradesPage() {
             trades={open}
             onClose={t => setClosingTrade(t)}
             onEdit={t => setEditingTrade(t)}
+            onDelete={id => deleteTrade.mutate(id)}
             showClose
           />
         </div>
@@ -114,7 +121,7 @@ export default function TradesPage() {
             <p className="text-text-muted font-mono text-sm">No closed trades yet</p>
           </div>
         ) : (
-          <TradeTable trades={closed} onEdit={t => setEditingTrade(t)} />
+          <TradeTable trades={closed} onEdit={t => setEditingTrade(t)} onDelete={id => deleteTrade.mutate(id)} />
         )}
       </div>
 
@@ -146,10 +153,11 @@ export default function TradesPage() {
 
 // ── Trade Table ───────────────────────────────────────────────────────────────
 
-function TradeTable({ trades, onClose, onEdit, showClose }: {
-  trades: Trade[]
-  onClose?: (t: Trade) => void
-  onEdit?:  (t: Trade) => void
+function TradeTable({ trades, onClose, onEdit, onDelete, showClose }: {
+  trades:    Trade[]
+  onClose?:  (t: Trade) => void
+  onEdit?:   (t: Trade) => void
+  onDelete?: (id: string) => void
   showClose?: boolean
 }) {
   return (
@@ -199,8 +207,7 @@ function TradeTable({ trades, onClose, onEdit, showClose }: {
                   <td>
                     {t.exitPrice != null
                       ? <span className="font-mono tabular text-sm">${t.exitPrice.toFixed(2)}</span>
-                      : <span className="text-text-muted">—</span>
-                    }
+                      : <span className="text-text-muted">—</span>}
                   </td>
                   <td>
                     {t.pnlEur != null ? (
@@ -223,26 +230,32 @@ function TradeTable({ trades, onClose, onEdit, showClose }: {
                       ? <Badge variant={t.setupQuality === 'HIGH' ? 'gain' : t.setupQuality === 'MEDIUM' ? 'warn' : 'loss'}>
                           {t.setupQuality}
                         </Badge>
-                      : <span className="text-text-muted">—</span>
-                    }
+                      : <span className="text-text-muted">—</span>}
                   </td>
                   <td>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       {onEdit && (
-                        <button
-                          onClick={() => onEdit(t)}
-                          className="text-xs font-mono text-text-muted hover:text-accent transition-colors"
-                          title="Edit trade"
-                        >
+                        <button onClick={() => onEdit(t)}
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                           Edit
                         </button>
                       )}
                       {showClose && onClose && (
-                        <button
-                          onClick={() => onClose(t)}
-                          className="text-xs font-mono text-accent hover:text-indigo-300 transition-colors"
-                        >
+                        <button onClick={() => onClose(t)}
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                           Close
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete ${t.sym} trade? This cannot be undone.`))
+                              onDelete(t.id)
+                          }}
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                          title="Delete trade"
+                        >
+                          Del
                         </button>
                       )}
                     </div>
@@ -279,21 +292,13 @@ function CreateTradeModal({ open, onClose, onCreated }: {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(data),
       }).then(r => r.json()),
-    onSuccess: (data) => {
-      if (data.error) { setApiError(data.error); return }
-      setWarnings(data.sizing?.warnings ?? [])
-      setRuleBreaks(data.ruleBreaks ?? [])
-      if ((data.ruleBreaks ?? []).length === 0) {
-        onCreated()
-      }
-    },
   })
 
-  function onSubmit(values: Record<string, unknown>) {
+  async function onSubmit(values: Record<string, unknown>) {
     setApiError('')
     setWarnings([])
     setRuleBreaks([])
-    mutation.mutate({
+    const data = await mutation.mutateAsync({
       ...values,
       entryPrice: parseFloat(values.entryPrice as string),
       stopPrice:  parseFloat(values.stopPrice as string),
@@ -302,6 +307,10 @@ function CreateTradeModal({ open, onClose, onCreated }: {
       riskEur:    parseFloat(values.riskEur as string),
       shares:     parseInt(values.shares as string),
     })
+    if (data.error) { setApiError(data.error); return }
+    setWarnings(data.sizing?.warnings ?? [])
+    setRuleBreaks(data.ruleBreaks ?? [])
+    if ((data.ruleBreaks ?? []).length === 0) onCreated()
   }
 
   return (
