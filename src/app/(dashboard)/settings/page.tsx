@@ -14,6 +14,19 @@ interface Settings {
   timezone:           string
 }
 
+const card: React.CSSProperties = {
+  background: 'var(--bg2)', border: '1px solid var(--border)',
+  borderRadius: 12, padding: 20,
+}
+const sectionTitle: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontWeight: 600,
+  color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.14em',
+  marginBottom: 16,
+}
+const hint: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginTop: 5,
+}
+
 export default function SettingsPage() {
   const qc = useQueryClient()
   const [saved, setSaved] = useState(false)
@@ -23,7 +36,7 @@ export default function SettingsPage() {
     queryFn:  () => fetch('/api/settings').then(r => r.json()),
   })
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<Settings>()
+  const { register, handleSubmit, reset, watch } = useForm<Settings>()
 
   useEffect(() => {
     if (data?.settings) reset(data.settings)
@@ -39,126 +52,151 @@ export default function SettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['settings', 'pnl'] })
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      setTimeout(() => setSaved(false), 2500)
     },
   })
 
-  const inputCls = 'w-full bg-desk-raised border border-desk-border rounded-lg px-3 py-2.5 text-sm font-mono text-text-primary focus:outline-none focus:border-accent'
-  const labelCls = 'block text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-1.5'
+  const watchedAccount = watch('accountSizeEur') ?? ACCOUNT.SIZE_EUR
+  const watchedDaily   = watch('maxDailyLossEur')
+  const watchedWeekly  = watch('maxWeeklyLossEur')
+  const dailyPct       = watchedAccount > 0 && watchedDaily  ? ((watchedDaily  / watchedAccount) * 100).toFixed(1) : null
+  const weeklyPct      = watchedAccount > 0 && watchedWeekly ? ((watchedWeekly / watchedAccount) * 100).toFixed(1) : null
 
   return (
-    <div className="p-6 max-w-[640px]">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Settings</h1>
-        <p className="text-text-muted text-sm font-mono mt-0.5">Account parameters and guardrails</p>
+    <div style={{ padding: 24, maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em' }}>Settings</h1>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text3)', marginTop: 3 }}>Account parameters and guardrails</p>
       </div>
 
-      <form onSubmit={handleSubmit(values => mutation.mutate(values))} className="space-y-6">
-        {/* Account */}
-        <div className="bg-desk-surface border border-desk-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">Account</h2>
+      <form onSubmit={handleSubmit(values => mutation.mutate(values))} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          <div className="grid grid-cols-2 gap-4">
+        {/* ── Account ── */}
+        <div style={card}>
+          <div style={sectionTitle}>Account</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
-              <label className={labelCls}>Account Size €</label>
-              <input {...register('accountSizeEur', { valueAsNumber: true, min: 100, max: 1_000_000 })}
-                type="number" step="10" className={inputCls} />
-              <p className="text-xxs font-mono text-text-muted mt-1">Current: €{ACCOUNT.SIZE_EUR}</p>
+              <label className="modal-label">Account Size €</label>
+              <input {...register('accountSizeEur', { valueAsNumber: true, min: 100 })}
+                type="number" step="10" className="modal-input" />
+              <p style={hint}>Current constant: €{ACCOUNT.SIZE_EUR}</p>
             </div>
             <div>
-              <label className={labelCls}>Default Risk Per Trade €</label>
+              <label className="modal-label">Risk Per Trade €</label>
               <input {...register('maxRiskPerTradeEur', { valueAsNumber: true, min: 1, max: 100 })}
-                type="number" step="0.5" className={inputCls} />
-              <p className="text-xxs font-mono text-text-muted mt-1">Range €{ACCOUNT.MIN_RISK_EUR}–€{ACCOUNT.MAX_RISK_EUR}</p>
+                type="number" step="0.5" className="modal-input" />
+              <p style={hint}>Allowed range: €{ACCOUNT.MIN_RISK_EUR} – €{ACCOUNT.MAX_RISK_EUR}</p>
             </div>
           </div>
         </div>
 
-        {/* Drawdown guardrails */}
-        <div className="bg-desk-surface border border-desk-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">Drawdown Guardrails</h2>
-
-          <div className="grid grid-cols-2 gap-4">
+        {/* ── Drawdown guardrails ── */}
+        <div style={{ ...card, border: '1px solid rgba(255,77,109,0.18)' }}>
+          <div style={{ ...sectionTitle, color: 'rgba(255,77,109,0.6)' }}>Drawdown Guardrails</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
-              <label className={labelCls}>Max Daily Loss €</label>
+              <label className="modal-label">Max Daily Loss €</label>
               <input {...register('maxDailyLossEur', { valueAsNumber: true, min: 1 })}
-                type="number" step="1" className={`${inputCls} border-loss/20`} />
-              <p className="text-xxs font-mono text-text-muted mt-1">Stop trading when hit</p>
+                type="number" step="1" className="modal-input"
+                style={{ borderColor: 'rgba(255,77,109,0.3)' }} />
+              <p style={hint}>
+                Stop trading when hit
+                {dailyPct && <span style={{ color: 'var(--red)', marginLeft: 6 }}>{dailyPct}% of account</span>}
+              </p>
             </div>
             <div>
-              <label className={labelCls}>Max Weekly Loss €</label>
+              <label className="modal-label">Max Weekly Loss €</label>
               <input {...register('maxWeeklyLossEur', { valueAsNumber: true, min: 1 })}
-                type="number" step="1" className={`${inputCls} border-loss/20`} />
-              <p className="text-xxs font-mono text-text-muted mt-1">Review before next week</p>
+                type="number" step="1" className="modal-input"
+                style={{ borderColor: 'rgba(255,77,109,0.3)' }} />
+              <p style={hint}>
+                Review before next week
+                {weeklyPct && <span style={{ color: 'var(--red)', marginLeft: 6 }}>{weeklyPct}% of account</span>}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Features */}
-        <div className="bg-desk-surface border border-desk-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">Features</h2>
+        {/* ── Features ── */}
+        <div style={card}>
+          <div style={sectionTitle}>Features</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input {...register('newsScanEnabled')} type="checkbox"
-              className="w-4 h-4 rounded border-desk-border bg-desk-raised accent-accent" />
+            {/* News scan toggle */}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
+              <div style={{ position: 'relative', flexShrink: 0, marginTop: 2 }}>
+                <input {...register('newsScanEnabled')} type="checkbox"
+                  style={{ width: 16, height: 16, accentColor: 'var(--blue)', cursor: 'pointer' }} />
+              </div>
+              <div>
+                <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)', marginBottom: 3 }}>AI News Risk Scan</p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', lineHeight: 1.5 }}>
+                  Uses Anthropic API + web search to flag news risk on top picks before entry
+                </p>
+              </div>
+            </label>
+
+            {/* Timezone */}
             <div>
-              <p className="text-sm text-text-primary">AI News Risk Scan</p>
-              <p className="text-xxs font-mono text-text-muted">Uses Anthropic API + web search to flag news risk on top picks</p>
+              <label className="modal-label">Display Timezone</label>
+              <select {...register('timezone')} className="modal-input">
+                <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
+                <option value="America/New_York">America/New_York (ET)</option>
+                <option value="UTC">UTC</option>
+              </select>
             </div>
-          </label>
-
-          <div>
-            <label className={labelCls}>Display Timezone</label>
-            <select {...register('timezone')} className={inputCls}>
-              <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
-              <option value="America/New_York">America/New_York (ET)</option>
-              <option value="UTC">UTC</option>
-            </select>
           </div>
         </div>
 
-        {/* Save button */}
-        <div className="flex items-center gap-4">
+        {/* ── Save ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="bg-accent hover:bg-indigo-400 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
+            style={{
+              background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 8,
+              fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 600,
+              padding: '11px 28px', cursor: mutation.isPending ? 'not-allowed' : 'pointer',
+              opacity: mutation.isPending ? 0.6 : 1, transition: 'opacity 0.15s',
+            }}
           >
             {mutation.isPending ? 'Saving…' : 'Save Settings'}
           </button>
           {saved && (
-            <span className="text-sm font-mono text-gain animate-fade-in">✓ Saved</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--green)', animation: 'fadeIn 0.2s ease' }}>
+              ✓ Saved
+            </span>
           )}
         </div>
       </form>
 
-      {/* Screener constants reference */}
-      <div className="mt-8 bg-desk-surface border border-desk-border rounded-xl p-5">
-        <h2 className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest mb-4">
-          Active Screener Constants
-        </h2>
-        <div className="grid grid-cols-2 gap-y-2 gap-x-6 text-xs font-mono">
+      {/* ── Screener constants reference ── */}
+      <div style={{ ...card, marginTop: 16, border: '1px solid var(--border)' }}>
+        <div style={sectionTitle}>Active Screener Constants</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px' }}>
           {[
-            ['Price Floor',         `> $10`],
-            ['RSI Range',           `45–75 (screener)`],
-            ['Rel Vol Min',         `≥ 0.8×`],
-            ['Weekly Spike Guard',  `≤ 20% change`],
-            ['Earnings Blackout',   `10 calendar days`],
-            ['52W High Range',      `3%–20% below`],
-            ['Market Cap Floor',    `> $500M`],
-            ['Min R:R',             `2:1`],
+            ['Price Floor',        '> $10'],
+            ['RSI Range',          '45–75'],
+            ['Rel Vol Min',        '≥ 0.8×'],
+            ['Weekly Spike Guard', '≤ 20% change'],
+            ['Earnings Blackout',  '10 calendar days'],
+            ['52W High Range',     '3%–20% below'],
+            ['Market Cap Floor',   '> $500M'],
+            ['Min R:R',            '2:1'],
           ].map(([k, v]) => (
-            <div key={k} className="flex justify-between">
-              <span className="text-text-muted">{k}</span>
-              <span className="text-accent">{v}</span>
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text3)' }}>{k}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--blue)' }}>{v}</span>
             </div>
           ))}
         </div>
-        <p className="text-xxs font-mono text-text-muted mt-3">
-          These are strategy constants defined in <code className="text-accent">src/constants/screener.ts</code>.
-          Changing them requires a code change and redeploy.
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginTop: 12, lineHeight: 1.6 }}>
+          Defined in <code style={{ color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>src/constants/screener.ts</code> — changing requires a code change and redeploy.
         </p>
       </div>
+
     </div>
   )
 }
