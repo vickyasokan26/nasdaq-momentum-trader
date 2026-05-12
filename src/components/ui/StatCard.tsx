@@ -1,40 +1,52 @@
 import { type ReactNode } from 'react'
 
 interface StatCardProps {
-  label:     string
-  value:     ReactNode
-  sub?:      ReactNode
-  accent?:   'gain' | 'loss' | 'warn' | 'accent' | 'neutral'
-  className?: string
+  label:   string
+  value:   ReactNode
+  sub?:    ReactNode
+  accent?: 'gain' | 'loss' | 'warn' | 'accent' | 'neutral'
 }
 
-const ACCENT_MAP = {
-  gain:    'border-gain/20',
-  loss:    'border-loss/20',
-  warn:    'border-warn/20',
-  accent:  'border-accent/20',
-  neutral: 'border-desk-border',
+const BORDER_MAP: Record<string, string> = {
+  gain:    'rgba(0,214,124,0.18)',
+  loss:    'rgba(255,77,109,0.18)',
+  warn:    'rgba(245,166,35,0.18)',
+  accent:  'rgba(77,159,255,0.18)',
+  neutral: 'var(--border)',
 }
 
-const VALUE_MAP = {
-  gain:    'text-gain',
-  loss:    'text-loss',
-  warn:    'text-warn',
-  accent:  'text-accent',
-  neutral: 'text-text-primary',
+const VALUE_COLOR: Record<string, string> = {
+  gain:    'var(--green)',
+  loss:    'var(--red)',
+  warn:    'var(--amber)',
+  accent:  'var(--blue)',
+  neutral: 'var(--text)',
 }
 
-export function StatCard({ label, value, sub, accent = 'neutral', className = '' }: StatCardProps) {
+export function StatCard({ label, value, sub, accent = 'neutral' }: StatCardProps) {
   return (
-    <div className={`bg-desk-surface border ${ACCENT_MAP[accent]} rounded-xl p-4 ${className}`}>
-      <div className="text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-2">
+    <div style={{
+      background: 'var(--bg2)',
+      border: `1px solid ${BORDER_MAP[accent]}`,
+      borderRadius: 12,
+      padding: '14px 16px',
+    }}>
+      <div style={{
+        fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontWeight: 600,
+        color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8,
+      }}>
         {label}
       </div>
-      <div className={`text-2xl font-mono font-semibold tabular ${VALUE_MAP[accent]}`}>
+      <div style={{
+        fontFamily: 'var(--font-mono)', fontSize: '1.5rem', fontWeight: 600,
+        color: VALUE_COLOR[accent], fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+      }}>
         {value}
       </div>
       {sub && (
-        <div className="text-xs font-mono text-text-muted mt-1">{sub}</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text3)', marginTop: 6 }}>
+          {sub}
+        </div>
       )}
     </div>
   )

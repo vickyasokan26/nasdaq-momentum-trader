@@ -17,6 +17,16 @@ interface SizerResult {
   tradingWindow:    string
 }
 
+const card: React.CSSProperties = {
+  background: 'var(--bg2)', border: '1px solid var(--border)',
+  borderRadius: 12, padding: 20,
+}
+
+const sectionTitle: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontWeight: 600,
+  color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16,
+}
+
 export default function SizerPage() {
   const [entry,   setEntry]   = useState('')
   const [stop,    setStop]    = useState('')
@@ -52,80 +62,111 @@ export default function SizerPage() {
     }
   }
 
-  const inputCls = 'w-full bg-desk-raised border border-desk-border rounded-lg px-3 py-2.5 text-sm font-mono text-text-primary focus:outline-none focus:border-accent placeholder:text-text-muted'
-  const labelCls = 'block text-xxs font-mono font-semibold text-text-muted uppercase tracking-widest mb-1.5'
+  const rrBarPct  = result ? Math.min(100, (result.rrToT1 / 5) * 100) : 0
+  const rrBarColor = result
+    ? result.rrToT1 >= ACCOUNT.PREFERRED_RR ? 'var(--green)'
+    : result.rrToT1 >= ACCOUNT.MIN_RR       ? 'var(--amber)'
+    : 'var(--red)'
+    : 'var(--border)'
 
   return (
-    <div className="p-6 max-w-[900px]">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Position Sizer</h1>
-        <p className="text-text-muted text-sm font-mono mt-0.5">
+    <div style={{ padding: 24, maxWidth: 920 }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+          Position Sizer
+        </h1>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text3)', marginTop: 3 }}>
           Structure-based sizing — stop distance is variable, risk is fixed
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input panel */}
-        <div className="bg-desk-surface border border-desk-border rounded-xl p-5 space-y-4">
-          <h2 className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest">Trade Parameters</h2>
+      {/* Two-column layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Entry Price $</label>
-              <input type="number" step="0.01" value={entry} onChange={e => setEntry(e.target.value)}
-                className={inputCls} placeholder="0.00" />
+        {/* ── Input panel ── */}
+        <div style={card}>
+          <div style={sectionTitle}>Trade Parameters</div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label className="modal-label">Entry Price $</label>
+                <input type="number" step="0.01" value={entry}
+                  onChange={e => setEntry(e.target.value)}
+                  className="modal-input" placeholder="0.00" />
+              </div>
+              <div>
+                <label className="modal-label">Stop Price $</label>
+                <input type="number" step="0.01" value={stop}
+                  onChange={e => setStop(e.target.value)}
+                  className="modal-input" placeholder="0.00"
+                  style={{ borderColor: 'rgba(255,77,109,0.35)' }} />
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Stop Price $</label>
-              <input type="number" step="0.01" value={stop} onChange={e => setStop(e.target.value)}
-                className={`${inputCls} border-loss/30`} placeholder="0.00" />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label className="modal-label">Target 1 $</label>
+                <input type="number" step="0.01" value={t1}
+                  onChange={e => setT1(e.target.value)}
+                  className="modal-input" placeholder="0.00"
+                  style={{ borderColor: 'rgba(0,214,124,0.35)' }} />
+              </div>
+              <div>
+                <label className="modal-label">Target 2 $ (opt)</label>
+                <input type="number" step="0.01" value={t2}
+                  onChange={e => setT2(e.target.value)}
+                  className="modal-input" placeholder="0.00" />
+              </div>
             </div>
+
+            <div>
+              <label className="modal-label">Risk Amount €</label>
+              <input type="number" step="0.01" value={risk}
+                onChange={e => setRisk(e.target.value)}
+                className="modal-input" placeholder="12.00"
+                style={{ borderColor: 'rgba(245,166,35,0.35)' }} />
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginTop: 5 }}>
+                Range: €{ACCOUNT.MIN_RISK_EUR}–€{ACCOUNT.MAX_RISK_EUR}
+              </p>
+            </div>
+
+            {error && (
+              <div style={{ background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.25)', borderRadius: 8, padding: '10px 14px' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--red)' }}>{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={calculate}
+              disabled={!entry || !stop || !t1 || loading}
+              style={{
+                background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 8,
+                fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 600,
+                padding: '11px 0', cursor: (!entry || !stop || !t1 || loading) ? 'not-allowed' : 'pointer',
+                opacity: (!entry || !stop || !t1 || loading) ? 0.45 : 1,
+                transition: 'opacity 0.15s', width: '100%',
+              }}
+            >
+              {loading ? 'Calculating…' : 'Calculate'}
+            </button>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Target 1 $</label>
-              <input type="number" step="0.01" value={t1} onChange={e => setT1(e.target.value)}
-                className={`${inputCls} border-gain/30`} placeholder="0.00" />
-            </div>
-            <div>
-              <label className={labelCls}>Target 2 $ (opt)</label>
-              <input type="number" step="0.01" value={t2} onChange={e => setT2(e.target.value)}
-                className={inputCls} placeholder="0.00" />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelCls}>Risk Amount €</label>
-            <input type="number" step="0.01" value={risk} onChange={e => setRisk(e.target.value)}
-              className={`${inputCls} border-warn/30`} placeholder="12.00" />
-            <p className="text-xxs font-mono text-text-muted mt-1">Range: €{ACCOUNT.MIN_RISK_EUR}–€{ACCOUNT.MAX_RISK_EUR}</p>
-          </div>
-
-          {error && (
-            <div className="bg-loss/5 border border-loss/30 rounded-lg px-3 py-2.5">
-              <p className="text-sm font-mono text-loss">{error}</p>
-            </div>
-          )}
-
-          <button
-            onClick={calculate}
-            disabled={!entry || !stop || !t1 || loading}
-            className="w-full bg-accent hover:bg-indigo-400 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm"
-          >
-            {loading ? 'Calculating…' : 'Calculate'}
-          </button>
         </div>
 
-        {/* Result panel */}
-        <div className="space-y-4">
+        {/* ── Result panel ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {!result ? (
-            <div className="bg-desk-surface border border-desk-border rounded-xl p-8 text-center">
-              <p className="text-text-muted font-mono text-sm">Enter trade parameters to calculate size</p>
+            <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--text3)' }}>
+                Enter trade parameters to calculate size
+              </p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              {/* Stat grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <StatCard
                   label="Shares"
                   value={result.shares}
@@ -150,53 +191,67 @@ export default function SizerPage() {
                 />
               </div>
 
-              {/* R:R display */}
-              <div className="bg-desk-surface border border-desk-border rounded-xl p-4">
-                <div className="text-xxs font-mono text-text-muted uppercase tracking-widest mb-3">Reward : Risk</div>
-                <div className="flex items-end gap-4">
+              {/* R:R card */}
+              <div style={card}>
+                <div style={sectionTitle}>Reward : Risk</div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginBottom: 14 }}>
                   <div>
-                    <div className="text-xxs font-mono text-text-muted mb-1">To Target 1</div>
-                    <div className={`text-2xl font-mono font-semibold tabular ${result.rrToT1 >= ACCOUNT.MIN_RR ? 'text-gain' : 'text-loss'}`}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginBottom: 4 }}>To Target 1</div>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 700,
+                      color: result.rrToT1 >= ACCOUNT.MIN_RR ? 'var(--green)' : 'var(--red)',
+                      fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+                    }}>
                       {result.rrToT1.toFixed(1)}:1
                     </div>
                   </div>
                   {result.rrToT2 != null && (
                     <div>
-                      <div className="text-xxs font-mono text-text-muted mb-1">To Target 2</div>
-                      <div className="text-xl font-mono font-semibold tabular text-accent">
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginBottom: 4 }}>To Target 2</div>
+                      <div style={{
+                        fontFamily: 'var(--font-mono)', fontSize: '1.5rem', fontWeight: 600,
+                        color: 'var(--blue)', fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+                      }}>
                         {result.rrToT2.toFixed(1)}:1
                       </div>
                     </div>
                   )}
-                  <div className="ml-auto text-right">
-                    <div className="text-xxs font-mono text-text-muted mb-1">Minimum</div>
-                    <div className="text-lg font-mono text-text-muted">{ACCOUNT.MIN_RR}:1</div>
+                  <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginBottom: 4 }}>Minimum</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', color: 'var(--text3)', fontVariantNumeric: 'tabular-nums' }}>
+                      {ACCOUNT.MIN_RR}:1
+                    </div>
                   </div>
                 </div>
-
-                {/* R:R bar */}
-                <div className="mt-3 h-1.5 bg-desk-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${result.rrToT1 >= ACCOUNT.PREFERRED_RR ? 'bg-gain' : result.rrToT1 >= ACCOUNT.MIN_RR ? 'bg-warn' : 'bg-loss'}`}
-                    style={{ width: `${Math.min(100, (result.rrToT1 / 5) * 100)}%` }}
-                  />
+                <div style={{ height: 6, background: 'var(--bg3)', borderRadius: 999, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', width: `${rrBarPct}%`,
+                    background: rrBarColor, borderRadius: 999,
+                    transition: 'width 0.4s ease',
+                  }} />
                 </div>
               </div>
 
               {/* Warnings */}
               {result.warnings.length > 0 && (
-                <div className="space-y-2">
-                  {result.warnings.map((w, i) => (
-                    <div key={i} className={`
-                      border rounded-lg px-3 py-2.5 text-xs font-mono
-                      ${w.includes('DO NOT') || w.includes('WILL be hunted')
-                        ? 'bg-loss/5 border-loss/30 text-loss'
-                        : 'bg-warn/5 border-warn/20 text-warn'
-                      }
-                    `}>
-                      {w.includes('DO NOT') || w.includes('WILL') ? '✗' : '⚠'} {w}
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {result.warnings.map((w, i) => {
+                    const isHard = w.includes('DO NOT') || w.includes('WILL be hunted')
+                    return (
+                      <div key={i} style={{
+                        background: isHard ? 'rgba(255,77,109,0.06)' : 'rgba(245,166,35,0.06)',
+                        border: `1px solid ${isHard ? 'rgba(255,77,109,0.25)' : 'rgba(245,166,35,0.2)'}`,
+                        borderRadius: 8, padding: '10px 14px',
+                      }}>
+                        <p style={{
+                          fontFamily: 'var(--font-mono)', fontSize: '0.8rem',
+                          color: isHard ? 'var(--red)' : 'var(--amber)', lineHeight: 1.5,
+                        }}>
+                          {isHard ? '✗' : '⚠'} {w}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>
@@ -204,12 +259,10 @@ export default function SizerPage() {
         </div>
       </div>
 
-      {/* Reference table */}
-      <div className="mt-6 bg-desk-surface border border-desk-border rounded-xl p-5">
-        <h2 className="text-xs font-mono font-semibold text-text-muted uppercase tracking-widest mb-4">
-          Size Reference — €{ACCOUNT.SIZE_EUR} Account
-        </h2>
-        <div className="overflow-x-auto">
+      {/* ── Size Reference table ── */}
+      <div style={{ ...card, marginTop: 16 }}>
+        <div style={sectionTitle}>Size Reference — €{ACCOUNT.SIZE_EUR} Account</div>
+        <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
               <tr>
@@ -228,12 +281,12 @@ export default function SizerPage() {
                 const pos14 = Math.min(14 / (dist / 100), ACCOUNT.SIZE_EUR * ACCOUNT.MAX_POSITION_PCT)
                 return (
                   <tr key={dist}>
-                    <td><span className="font-mono tabular">{dist}%</span></td>
-                    <td><span className="font-mono tabular text-text-secondary">€{pos10.toFixed(0)}</span></td>
-                    <td><span className="font-mono tabular text-warn">€{pos12.toFixed(0)}</span></td>
-                    <td><span className="font-mono tabular text-text-secondary">€{pos14.toFixed(0)}</span></td>
-                    <td><span className="font-mono tabular text-text-secondary">~{Math.floor(pos12 / 30)}</span></td>
-                    <td><span className="font-mono tabular text-text-secondary">~{Math.floor(pos12 / 50)}</span></td>
+                    <td><span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{dist}%</span></td>
+                    <td><span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--text2)' }}>€{pos10.toFixed(0)}</span></td>
+                    <td><span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--amber)' }}>€{pos12.toFixed(0)}</span></td>
+                    <td><span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--text2)' }}>€{pos14.toFixed(0)}</span></td>
+                    <td><span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--text2)' }}>~{Math.floor(pos12 / 30)}</span></td>
+                    <td><span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--text2)' }}>~{Math.floor(pos12 / 50)}</span></td>
                   </tr>
                 )
               })}
@@ -241,6 +294,7 @@ export default function SizerPage() {
           </table>
         </div>
       </div>
+
     </div>
   )
 }
