@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const sessionId = searchParams.get('sessionId')
   const latest    = searchParams.get('latest') === 'true'
+  const sym       = searchParams.get('sym')?.toUpperCase()
 
   let targetSessionId = sessionId
 
@@ -35,7 +36,11 @@ export async function GET(req: NextRequest) {
   if (!sess) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
   const candidates = await db.screenCandidate.findMany({
-    where: { sessionId: targetSessionId, userId },
+    where: {
+      sessionId: targetSessionId,
+      userId,
+      ...(sym ? { sym } : {}),
+    },
     orderBy: [{ rank: 'asc' }, { score: 'desc' }],
   })
 

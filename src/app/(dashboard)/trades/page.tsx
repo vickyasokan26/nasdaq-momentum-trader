@@ -272,18 +272,32 @@ function TradeTable({ trades, onClose, onEdit, onDelete, showClose }: {
 
 // ── Create Trade Modal ────────────────────────────────────────────────────────
 
+function calcScreenerLevels(c: { price: number; ema20?: number | null; ema50?: number | null }) {
+  const emaGap   = (c.ema20 && c.ema50 && c.ema50 > 0) ? ((c.ema20 - c.ema50) / c.ema50) * 100 : 0
+  const sd       = Math.max(0.025, Math.min(0.055, 0.03 + (emaGap / 100)))
+  const entryLow = c.price * 0.985
+  const stop     = entryLow * (1 - sd)
+  const t1       = c.price * (1 + sd * 2.5)
+  const t2       = c.price * (1 + sd * 4)
+  const posEur   = Math.min(12 / sd, 595)
+  const shares   = Math.floor((posEur * 1.09) / c.price)
+  return { entry: entryLow, stop, t1, t2, shares }
+}
+
 function CreateTradeModal({ open, onClose, onCreated }: {
   open: boolean; onClose: () => void; onCreated: () => void
 }) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<{
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<{
     sym: string; entryPrice: number; stopPrice: number; t1Price: number
     t2Price: number; riskEur: number; shares: number; notes: string
     setupQuality: string
   }>()
 
-  const [apiError, setApiError]     = useState('')
-  const [warnings, setWarnings]     = useState<string[]>([])
-  const [ruleBreaks, setRuleBreaks] = useState<string[]>([])
+  const [apiError, setApiError]         = useState('')
+  const [warnings, setWarnings]         = useState<string[]>([])
+  const [ruleBreaks, setRuleBreaks]     = useState<string[]>([])
+  const [autoFilled, setAutoFilled]     = useState(false)
+  const [lookingUp, setLookingUp]       = useState(false)
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -293,6 +307,28 @@ function CreateTradeModal({ open, onClose, onCreated }: {
         body:    JSON.stringify(data),
       }).then(r => r.json()),
   })
+
+  async function lookupScreener(sym: string) {
+    if (!sym.trim()) return
+    setLookingUp(true)
+    try {
+      const res  = await fetch(`/api/candidates?latest=true&sym=${encodeURIComponent(sym.trim().toUpperCase())}`)
+      const data = await res.json()
+      const c    = data?.candidates?.[0]
+      if (c) {
+        const lvl = calcScreenerLevels(c)
+        setValue('entryPrice', parseFloat(lvl.entry.toFixed(2)))
+        setValue('stopPrice',  parseFloat(lvl.stop.toFixed(2)))
+        setValue('t1Price',    parseFloat(lvl.t1.toFixed(2)))
+        setValue('t2Price',    parseFloat(lvl.t2.toFixed(2)))
+        setValue('shares',     lvl.shares)
+        setAutoFilled(true)
+      } else {
+        setAutoFilled(false)
+      }
+    } catch { /* ignore */ }
+    setLookingUp(false)
+  }
 
   async function onSubmit(values: Record<string, unknown>) {
     setApiError('')
@@ -319,7 +355,23 @@ function CreateTradeModal({ open, onClose, onCreated }: {
         <div className="modal-grid-2">
           <div className="modal-field">
             <label className="modal-label">Symbol</label>
-            <input {...register('sym', { required: true })} className="modal-input" placeholder="AAPL" />
+            <input
+              {...register('sym', { required: true })}
+              className="modal-input"
+              placeholder="AAPL"
+              onBlur={e => lookupScreener(e.target.value)}
+              onChange={() => setAutoFilled(false)}
+            />
+            {lookingUp && (
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginTop: 4 }}>
+                Looking up screener data…
+              </p>
+            )}
+            {autoFilled && !lookingUp && (
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--green)', marginTop: 4 }}>
+                ✓ Levels pre-filled from latest screener — adjust as needed
+              </p>
+            )}
           </div>
           <div className="modal-field">
             <label className="modal-label">Setup Quality</label>
