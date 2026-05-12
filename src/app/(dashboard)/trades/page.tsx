@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { Modal } from '@/components/ui/Modal'
 import { Badge, pnlSign, pnlColor } from '@/components/ui/Badge'
 import { StatCard } from '@/components/ui/StatCard'
+import { calcCandidateLevels } from '@/features/trades/levels'
 
 interface Trade {
   id:          string
@@ -272,17 +273,6 @@ function TradeTable({ trades, onClose, onEdit, onDelete, showClose }: {
 
 // ── Create Trade Modal ────────────────────────────────────────────────────────
 
-function calcScreenerLevels(c: { price: number; ema20?: number | null; ema50?: number | null }) {
-  const emaGap   = (c.ema20 && c.ema50 && c.ema50 > 0) ? ((c.ema20 - c.ema50) / c.ema50) * 100 : 0
-  const sd       = Math.max(0.025, Math.min(0.055, 0.03 + (emaGap / 100)))
-  const entryLow = c.price * 0.985
-  const stop     = entryLow * (1 - sd)
-  const t1       = c.price * (1 + sd * 2.5)
-  const t2       = c.price * (1 + sd * 4)
-  const posEur   = Math.min(12 / sd, 595)
-  const shares   = Math.floor((posEur * 1.09) / c.price)
-  return { entry: entryLow, stop, t1, t2, shares }
-}
 
 function CreateTradeModal({ open, onClose, onCreated }: {
   open: boolean; onClose: () => void; onCreated: () => void
@@ -316,8 +306,8 @@ function CreateTradeModal({ open, onClose, onCreated }: {
       const data = await res.json()
       const c    = data?.candidates?.[0]
       if (c) {
-        const lvl = calcScreenerLevels(c)
-        setValue('entryPrice', parseFloat(lvl.entry.toFixed(2)))
+        const lvl = calcCandidateLevels(c)
+        setValue('entryPrice', parseFloat(lvl.entryLow.toFixed(2)))
         setValue('stopPrice',  parseFloat(lvl.stop.toFixed(2)))
         setValue('t1Price',    parseFloat(lvl.t1.toFixed(2)))
         setValue('t2Price',    parseFloat(lvl.t2.toFixed(2)))
