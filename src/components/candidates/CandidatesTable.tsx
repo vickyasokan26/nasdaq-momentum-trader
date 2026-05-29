@@ -43,6 +43,26 @@ interface VerdictResult {
   v:     'ENTER' | 'WAIT' | 'SKIP'
   label: string
   text:  string
+  why?:  string[]
+}
+
+function buildEnterWhy(c: Candidate, rsi: number, emaGap: number): string[] {
+  const why: string[] = []
+
+  if (rsi < 52)
+    why.push(`RSI ${rsi.toFixed(1)} — mid-pullback zone`)
+  else
+    why.push(`RSI ${rsi.toFixed(1)} — mid-range`)
+
+  why.push(`EMA gap ${emaGap.toFixed(1)}% — bullish structure`)
+
+  if (c.chg1w != null)
+    why.push(`1W ${c.chg1w >= 0 ? '+' : ''}${c.chg1w.toFixed(1)}% — positive momentum`)
+
+  if (c.relVol != null)
+    why.push(`RelVol ${c.relVol.toFixed(2)}×`)
+
+  return why
 }
 
 function calcVerdict(c: Candidate): VerdictResult {
@@ -66,16 +86,26 @@ function calcVerdict(c: Candidate): VerdictResult {
     return { v: 'WAIT', label: 'Earnings approaching',
       text: `Earnings in ${earnDays}d. Entry possible but must be fully out by day ${earnDays - 8} latest.` }
 
-  if (rsi > 65)
+  if (rsi > 60)
     return { v: 'WAIT', label: 'RSI elevated on daily',
-      text: `Daily RSI ${rsi.toFixed(1)} is running hot. Wait for a 1H pullback to cool below 60. Do not chase.` }
+      text: `Daily RSI ${rsi.toFixed(1)} is running hot. Wait for a pullback to cool below 60 before dropping to 1H.` }
+
+  if (c.chg1w != null && c.chg1w < 0)
+    return { v: 'WAIT', label: 'Weekly momentum fading',
+      text: `1W change is ${c.chg1w.toFixed(1)}% — weekly momentum is negative. Wait for the weekly candle to turn positive before looking for a 1H entry.` }
 
   if (rsi < 52 && emaGap > 2)
     return { v: 'ENTER', label: 'Enter on 1H confirmation',
-      text: `RSI ${rsi.toFixed(1)} mid-pullback with clean EMA structure (${emaGap.toFixed(1)}% gap). Drop to 1H — EMA 20/50 retest + RSI 45–65 above 9MA + 3×1H candles above avg volume.` }
+      text: `RSI ${rsi.toFixed(1)} mid-pullback with clean EMA structure (${emaGap.toFixed(1)}% gap). Drop to 1H — EMA 20/50 retest + RSI 45–65 above 9MA + 3×1H candles above avg volume.`,
+      why: buildEnterWhy(c, rsi, emaGap) }
 
-  return { v: 'ENTER', label: 'Enter on 1H confirmation',
-    text: `Clean daily setup. Drop to 1H — wait for EMA 20/50 retest, RSI 45–65 above its 9MA, and last 3×1H candles above average volume.` }
+  if (emaGap > 1.5)
+    return { v: 'ENTER', label: 'Enter on 1H confirmation',
+      text: `Clean daily setup. Drop to 1H — wait for EMA 20/50 retest, RSI 45–65 above its 9MA, and last 3×1H candles above average volume.`,
+      why: buildEnterWhy(c, rsi, emaGap) }
+
+  return { v: 'WAIT', label: 'EMA gap marginal',
+    text: `EMA gap of ${emaGap.toFixed(1)}% is too thin for a reliable retest entry. Wait for the gap to widen above 1.5% before considering a 1H entry.` }
 }
 
 function calcLevels(c: Candidate): CandidateLevels {
@@ -415,6 +445,15 @@ function VerdictPanel({
           <div style={{ fontSize: '0.875rem', color: 'var(--text2)', lineHeight: 1.65 }}>
             {verdict.text}
           </div>
+          {verdict.why && verdict.why.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {verdict.why.map(w => (
+                <span key={w} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 600, color: vc.main, background: vc.dim, border: `1px solid ${vc.border}`, borderRadius: 999, padding: '3px 10px', opacity: 0.9 }}>
+                  {w}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
