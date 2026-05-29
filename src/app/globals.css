@@ -14,6 +14,9 @@
   --bg3:          #181c24;
   --border:       rgba(255,255,255,0.07);
   --border2:      rgba(255,255,255,0.12);
+  --row-border:   rgba(255,255,255,0.04);
+  --row-hover:    rgba(255,255,255,0.02);
+  --nav-hover:    rgba(255,255,255,0.03);
 
   --text:         #e8eaf0;
   --text2:        #8b90a0;
@@ -27,6 +30,30 @@
   --rdim:         rgba(255,77,109,0.10);
   --blue:         #4d9fff;
   --bdim:         rgba(77,159,255,0.09);
+}
+
+[data-theme="light"] {
+  --bg:           #f4f5f7;
+  --bg2:          #eceef2;
+  --bg3:          #e2e4ea;
+  --border:       rgba(0,0,0,0.08);
+  --border2:      rgba(0,0,0,0.15);
+  --row-border:   rgba(0,0,0,0.06);
+  --row-hover:    rgba(0,0,0,0.03);
+  --nav-hover:    rgba(0,0,0,0.04);
+
+  --text:         #1a1d26;
+  --text2:        #4a5168;
+  --text3:        #8b90a0;
+
+  --green:        #00955a;
+  --gdim:         rgba(0,149,90,0.10);
+  --amber:        #b87200;
+  --adim:         rgba(184,114,0,0.10);
+  --red:          #cc2244;
+  --rdim:         rgba(204,34,68,0.10);
+  --blue:         #1a65c8;
+  --bdim:         rgba(26,101,200,0.09);
 }
 
 /* ── Base ───────────────────────────────────────────────────── */
@@ -120,7 +147,7 @@ html, body {
 
 .sidebar-nav-item:hover {
   color: var(--text);
-  background: rgba(255,255,255,0.03);
+  background: var(--nav-hover);
 }
 
 .sidebar-nav-item.active {
@@ -200,10 +227,10 @@ html, body {
 }
 .data-table td {
   padding: 0.75rem 0.75rem;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--row-border);
   font-size: 0.875rem;
 }
-.data-table tr:hover td { background: rgba(255,255,255,0.02); }
+.data-table tr:hover td { background: var(--row-hover); }
 
 /* ── Modal / Form ───────────────────────────────────────────── */
 .modal-input {
