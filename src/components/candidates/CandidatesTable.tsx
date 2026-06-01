@@ -94,6 +94,11 @@ function calcVerdict(c: Candidate): VerdictResult {
     return { v: 'WAIT', label: 'Weekly momentum fading',
       text: `1W change is ${c.chg1w.toFixed(1)}% — weekly momentum is negative. Wait for the weekly candle to turn positive before looking for a 1H entry.` }
 
+  const distFromEma20 = (c.ema20 && c.ema20 > 0) ? ((c.price - c.ema20) / c.ema20) * 100 : 0
+  if (c.ema20 && distFromEma20 > 2.5)
+    return { v: 'WAIT', label: 'Extended above EMA20',
+      text: `Price is ${distFromEma20.toFixed(1)}% above daily EMA20 ($${c.ema20.toFixed(2)}) — not in the retest zone yet. Wait for a pullback to $${(c.ema20 * 0.997).toFixed(2)}–$${(c.ema20 * 1.003).toFixed(2)}.` }
+
   if (rsi < 52 && emaGap > 2)
     return { v: 'ENTER', label: 'Enter on 1H confirmation',
       text: `RSI ${rsi.toFixed(1)} mid-pullback with clean EMA structure (${emaGap.toFixed(1)}% gap). Drop to 1H — EMA 20/50 retest + RSI 45–65 above 9MA + 3×1H candles above avg volume.`,
