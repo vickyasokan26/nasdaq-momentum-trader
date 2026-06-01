@@ -8,16 +8,23 @@ import { calculatePositionSize, detectRuleBreaks } from '@/features/trades/sizin
 import { getTradingWindow } from '@/lib/timezone'
 import { Prisma } from '@prisma/client'
 
+const EntryChecklistSchema = z.object({
+  priceAtEma: z.boolean(),
+  rsi1hOk:    z.boolean(),
+  vol1hOk:    z.boolean(),
+})
+
 const CreateTradeSchema = z.object({
-  sym:          z.string().min(1).max(10).toUpperCase(),
-  entryPrice:   z.number().positive(),
-  stopPrice:    z.number().positive(),
-  t1Price:      z.number().positive(),
-  t2Price:      z.number().positive().optional(),
-  riskEur:      z.number().positive().max(50),
-  shares:       z.number().int().positive(),
-  notes:        z.string().max(1000).optional(),
-  setupQuality: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
+  sym:            z.string().min(1).max(10).toUpperCase(),
+  entryPrice:     z.number().positive(),
+  stopPrice:      z.number().positive(),
+  t1Price:        z.number().positive(),
+  t2Price:        z.number().positive().optional(),
+  riskEur:        z.number().positive().max(50),
+  shares:         z.number().int().positive(),
+  notes:          z.string().max(1000).optional(),
+  setupQuality:   z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
+  entryChecklist: EntryChecklistSchema.optional(),
 })
 
 const CloseTradeSchema = z.object({
@@ -119,10 +126,11 @@ export async function POST(req: NextRequest) {
       t2Price:        data.t2Price ?? null,
       riskEur:        data.riskEur,
       shares:         data.shares,
-      notes:          data.notes ?? null,
-      setupQuality:   data.setupQuality ?? null,
-      ruleBreaksJson: ruleBreaks.length > 0 ? ruleBreaks : Prisma.JsonNull,
-      status:         'OPEN',
+      notes:               data.notes ?? null,
+      setupQuality:        data.setupQuality ?? null,
+      ruleBreaksJson:      ruleBreaks.length > 0 ? ruleBreaks : Prisma.JsonNull,
+      entryChecklistJson:  data.entryChecklist ?? Prisma.JsonNull,
+      status:              'OPEN',
     },
   })
 

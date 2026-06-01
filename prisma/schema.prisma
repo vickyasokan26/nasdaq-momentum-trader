@@ -255,9 +255,10 @@ model Trade {
   exitPrice     Float?          @map("exit_price")
   exitReason    TradeExitReason? @map("exit_reason")
   pnlEur        Float?          @map("pnl_eur")
-  setupQuality  String?         @map("setup_quality") // HIGH | MEDIUM | LOW
-  ruleBreaksJson Json?          @map("rule_breaks_json")
-  closedAt      DateTime?       @map("closed_at")
+  setupQuality     String?         @map("setup_quality") // HIGH | MEDIUM | LOW
+  ruleBreaksJson   Json?          @map("rule_breaks_json")
+  entryChecklistJson Json?        @map("entry_checklist_json")
+  closedAt         DateTime?      @map("closed_at")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
 

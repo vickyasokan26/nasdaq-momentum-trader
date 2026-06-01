@@ -274,6 +274,12 @@ function TradeTable({ trades, onClose, onEdit, onDelete, showClose }: {
 // ── Create Trade Modal ────────────────────────────────────────────────────────
 
 
+const CHECKLIST_ITEMS = [
+  { key: 'priceAtEma', label: 'Price is retesting EMA20 or EMA50 from above and holding' },
+  { key: 'rsi1hOk',   label: '1H RSI is 45–65, above 9-period MA, with higher lows over last 3 candles' },
+  { key: 'vol1hOk',   label: 'Volume on last 3 completed 1H candles exceeds the 10-day average' },
+] as const
+
 function CreateTradeModal({ open, onClose, onCreated }: {
   open: boolean; onClose: () => void; onCreated: () => void
 }) {
@@ -288,6 +294,9 @@ function CreateTradeModal({ open, onClose, onCreated }: {
   const [ruleBreaks, setRuleBreaks]     = useState<string[]>([])
   const [autoFilled, setAutoFilled]     = useState(false)
   const [lookingUp, setLookingUp]       = useState(false)
+  const [checklist, setChecklist]       = useState({ priceAtEma: false, rsi1hOk: false, vol1hOk: false })
+
+  const checklistComplete = checklist.priceAtEma && checklist.rsi1hOk && checklist.vol1hOk
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -326,12 +335,13 @@ function CreateTradeModal({ open, onClose, onCreated }: {
     setRuleBreaks([])
     const data = await mutation.mutateAsync({
       ...values,
-      entryPrice: parseFloat(values.entryPrice as string),
-      stopPrice:  parseFloat(values.stopPrice as string),
-      t1Price:    parseFloat(values.t1Price as string),
-      t2Price:    values.t2Price ? parseFloat(values.t2Price as string) : undefined,
-      riskEur:    parseFloat(values.riskEur as string),
-      shares:     parseInt(values.shares as string),
+      entryPrice:     parseFloat(values.entryPrice as string),
+      stopPrice:      parseFloat(values.stopPrice as string),
+      t1Price:        parseFloat(values.t1Price as string),
+      t2Price:        values.t2Price ? parseFloat(values.t2Price as string) : undefined,
+      riskEur:        parseFloat(values.riskEur as string),
+      shares:         parseInt(values.shares as string),
+      entryChecklist: checklist,
     })
     if (data.error) { setApiError(data.error); return }
     setWarnings(data.sizing?.warnings ?? [])
@@ -429,6 +439,31 @@ function CreateTradeModal({ open, onClose, onCreated }: {
           </div>
         )}
 
+        {/* 1H entry checklist — all 3 required before log is enabled */}
+        <div style={{ background: 'var(--bg3)', border: `1px solid ${checklistComplete ? 'rgba(0,214,124,0.3)' : 'var(--border)'}`, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>
+            1H Entry Checklist — all required
+          </p>
+          {CHECKLIST_ITEMS.map(item => (
+            <label key={item.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={checklist[item.key]}
+                onChange={e => setChecklist(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                style={{ marginTop: 2, accentColor: 'var(--green)', width: 14, height: 14, flexShrink: 0 }}
+              />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: checklist[item.key] ? 'var(--text)' : 'var(--text2)', lineHeight: 1.4 }}>
+                {item.label}
+              </span>
+            </label>
+          ))}
+          {!checklistComplete && (
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginTop: 2 }}>
+              Check all 3 conditions to enable Log Trade
+            </p>
+          )}
+        </div>
+
         {apiError && (
           <div style={{ background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.25)', borderRadius: 8, padding: '10px 14px' }}>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--red)' }}>{apiError}</p>
@@ -437,7 +472,7 @@ function CreateTradeModal({ open, onClose, onCreated }: {
 
         <div className="modal-row">
           <button type="button" onClick={onClose} className="modal-btn modal-btn-cancel">Cancel</button>
-          <button type="submit" disabled={mutation.isPending} className="modal-btn modal-btn-primary">
+          <button type="submit" disabled={mutation.isPending || !checklistComplete} className="modal-btn modal-btn-primary">
             {mutation.isPending ? 'Logging…' : 'Log Trade'}
           </button>
         </div>
