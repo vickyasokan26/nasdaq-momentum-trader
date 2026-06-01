@@ -467,9 +467,12 @@ function VerdictPanel({
         {/* Entry */}
         <div style={tile}>
           <div style={tileLabel}>Entry Zone</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontWeight: 600, color: 'var(--blue)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+            {c.ema20 ? 'Daily EMA20' : 'Price-based'}
+          </div>
           <div style={tileVal}>${levels.entryLow.toFixed(2)}</div>
           <div style={tileSub}>– ${levels.entryHigh.toFixed(2)}</div>
-          <div style={tileNote}>1H EMA retest — confirm on chart</div>
+          <div style={tileNote}>Drop to 1H — watch EMA20/EMA50 retest there</div>
         </div>
 
         {/* Stop */}
