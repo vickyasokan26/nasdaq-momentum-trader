@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { calcCandidateLevels, calcEmaGap, type CandidateLevels } from '@/features/trades/levels'
 import { SECTOR_CORRECTIONS, CAUTION_SECTORS, isSuspectedMisclassification } from '@/constants/sectorCorrections'
+import type { NewsScanResult } from '@/types'
 
 interface Candidate {
   id:             string
@@ -416,6 +417,39 @@ function VerdictPanel({
     ? VERDICT_COLOR.WAIT
     : VERDICT_COLOR[verdict.v]
 
+  const [newsResult,  setNewsResult]  = useState<NewsScanResult | null>(null)
+  const [newsLoading, setNewsLoading] = useState(false)
+  const [newsError,   setNewsError]   = useState<string | null>(null)
+
+  async function runNewsScan() {
+    setNewsLoading(true)
+    setNewsError(null)
+    try {
+      const res  = await fetch('/api/news', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ symbols: [c.sym] }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setNewsError(data.error ?? 'Scan failed')
+      } else {
+        setNewsResult(data.results?.[0] ?? null)
+      }
+    } catch {
+      setNewsError('Network error — check connection')
+    } finally {
+      setNewsLoading(false)
+    }
+  }
+
+  const NEWS_RISK_COLOR: Record<string, { color: string; border: string; bg: string; label: string }> = {
+    high:    { color: 'var(--red)',   border: 'rgba(255,77,109,0.28)', bg: 'rgba(255,77,109,0.07)', label: 'HIGH RISK'    },
+    medium:  { color: 'var(--amber)', border: 'rgba(245,166,35,0.28)', bg: 'rgba(245,166,35,0.07)', label: 'MEDIUM RISK'  },
+    low:     { color: 'var(--green)', border: 'rgba(0,214,124,0.28)',  bg: 'rgba(0,214,124,0.07)',  label: 'LOW RISK'     },
+    unknown: { color: 'var(--text3)', border: 'var(--border)',         bg: 'var(--bg3)',             label: 'UNKNOWN RISK' },
+  }
+
   const tile: React.CSSProperties = {
     background: 'var(--bg)',
     border: '1px solid var(--border)',
@@ -544,6 +578,64 @@ function VerdictPanel({
             </div>
           )
         })}
+      </div>
+
+      {/* ── News scan ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={runNewsScan}
+            disabled={newsLoading}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 8,
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              border: '1px solid var(--border2)',
+              background: newsLoading ? 'rgba(255,255,255,0.04)' : 'rgba(77,159,255,0.1)',
+              color: newsLoading ? 'var(--text3)' : 'var(--blue)',
+              cursor: newsLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {newsLoading ? 'Scanning…' : newsResult ? '↻ Re-scan news' : '⚡ Scan news risk'}
+          </button>
+          {newsResult && !newsLoading && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text3)' }}>
+              {new Date(newsResult.scannedAt).toLocaleTimeString('en-NL', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          {newsError && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--red)' }}>{newsError}</span>
+          )}
+        </div>
+
+        {newsResult && (() => {
+          const nc = NEWS_RISK_COLOR[newsResult.riskLevel] ?? NEWS_RISK_COLOR.unknown
+          return (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', borderRadius: 10, background: nc.bg, border: `1px solid ${nc.border}` }}>
+              <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', fontWeight: 700, color: nc.color, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
+                  {nc.label}
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {newsResult.catalystType.replace('_', ' ')}
+                </span>
+              </div>
+              <div style={{ width: 1, alignSelf: 'stretch', background: nc.border, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text)', lineHeight: 1.55 }}>
+                  {newsResult.summary}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text3)', marginTop: 6 }}>
+                  Confidence: {newsResult.confidence}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── State buttons ── */}
