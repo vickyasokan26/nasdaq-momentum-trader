@@ -4,6 +4,7 @@
 
 import { parse } from 'csv-parse/sync'
 import type { RawCsvRow, CanonicalRow, ValidationReport, RowError, FilterDropSummary } from '@/types'
+import { applySectorCorrection } from '@/constants/sectorCorrections'
 
 const COLUMN_ALIASES: Record<string, string[]> = {
   symbol:              ['symbol', 'ticker', 'sym', 'name'],
@@ -157,7 +158,7 @@ export function canonicalizeRow(
     volume:               parseNum('volume'),
     relativeVolume:       parseNum('relativeVolume'),
     upcomingEarningsDate: parseDate('upcomingEarningsDate'),
-    sector:               get('sector'),
+    sector:               applySectorCorrection(sym, get('sector')),
     high52w:              parseNum('high52w'),
     chg1w:                parseNum('chg1w'),
     marketCap:            parseNum('marketCap'),

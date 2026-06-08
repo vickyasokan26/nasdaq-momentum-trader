@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { calcCandidateLevels, calcEmaGap, type CandidateLevels } from '@/features/trades/levels'
+import { SECTOR_CORRECTIONS, isSuspectedMisclassification } from '@/constants/sectorCorrections'
 
 interface Candidate {
   id:             string
@@ -344,7 +345,17 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                       )}
                     </td>
                     <td>
-                      <span className="text-xxs text-text-muted truncate max-w-[90px] block">{c.sector ?? '—'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span className="text-xxs text-text-muted truncate max-w-[90px]">{c.sector ?? '—'}</span>
+                        {SECTOR_CORRECTIONS[c.sym] && (
+                          <span title={`TradingView labels this as Finance — corrected to ${SECTOR_CORRECTIONS[c.sym]}`}
+                            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--blue)', flexShrink: 0 }}>~</span>
+                        )}
+                        {isSuspectedMisclassification(c.sym, c.sector ?? undefined, c.description ?? undefined) && (
+                          <span title="TradingView labels this as Finance but description suggests it may be a REIT — verify sector"
+                            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--amber)', flexShrink: 0 }}>?</span>
+                        )}
+                      </div>
                     </td>
                     <td className="text-center">
                       <span className={`text-xxs font-mono font-bold px-2.5 py-1 rounded-md border ${vc.badge}`}>
