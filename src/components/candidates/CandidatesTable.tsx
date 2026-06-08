@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { calcCandidateLevels, calcEmaGap, type CandidateLevels } from '@/features/trades/levels'
-import { SECTOR_CORRECTIONS, isSuspectedMisclassification } from '@/constants/sectorCorrections'
+import { SECTOR_CORRECTIONS, CAUTION_SECTORS, isSuspectedMisclassification } from '@/constants/sectorCorrections'
 
 interface Candidate {
   id:             string
@@ -41,10 +41,11 @@ function daysUntilEarnings(dateStr?: string | null): number {
 }
 
 interface VerdictResult {
-  v:     'ENTER' | 'WAIT' | 'SKIP'
-  label: string
-  text:  string
-  why?:  string[]
+  v:              'ENTER' | 'WAIT' | 'SKIP'
+  label:          string
+  text:           string
+  why?:           string[]
+  cautionSector?: string  // set when ENTER but sector has known strategy limitations
 }
 
 function buildEnterWhy(c: Candidate, rsi: number, emaGap: number): string[] {
@@ -100,15 +101,17 @@ function calcVerdict(c: Candidate): VerdictResult {
     return { v: 'WAIT', label: 'Extended above EMA20',
       text: `Price is ${distFromEma20.toFixed(1)}% above daily EMA20 ($${c.ema20.toFixed(2)}) — not in the retest zone yet. Wait for a pullback to $${(c.ema20 * 0.997).toFixed(2)}–$${(c.ema20 * 1.003).toFixed(2)}.` }
 
+  const cautionSector = c.sector ? CAUTION_SECTORS[c.sector] : undefined
+
   if (rsi < 52 && emaGap > 2)
     return { v: 'ENTER', label: 'Enter on 1H confirmation',
       text: `RSI ${rsi.toFixed(1)} mid-pullback with clean EMA structure (${emaGap.toFixed(1)}% gap). Drop to 1H — EMA 20/50 retest + RSI 45–65 above 9MA + 3×1H candles above avg volume.`,
-      why: buildEnterWhy(c, rsi, emaGap) }
+      why: buildEnterWhy(c, rsi, emaGap), cautionSector }
 
   if (emaGap > 1.5)
     return { v: 'ENTER', label: 'Enter on 1H confirmation',
       text: `Clean daily setup. Drop to 1H — wait for EMA 20/50 retest, RSI 45–65 above its 9MA, and last 3×1H candles above average volume.`,
-      why: buildEnterWhy(c, rsi, emaGap) }
+      why: buildEnterWhy(c, rsi, emaGap), cautionSector }
 
   return { v: 'WAIT', label: 'EMA gap marginal',
     text: `EMA gap of ${emaGap.toFixed(1)}% is too thin for a reliable retest entry. Wait for the gap to widen above 1.5% before considering a 1H entry.` }
@@ -281,7 +284,9 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                 ? (c.rsi < 50 ? 'text-warn' : c.rsi < 65 ? 'text-gain' : 'text-text-secondary')
                 : 'text-text-muted'
               const emaGapColor = emaGap < 1 ? 'text-warn' : emaGap > 8 ? 'text-warn' : 'text-gain'
-              const vc          = VERDICT_COLOR[verdict.v]
+              const vc          = (verdict.v === 'ENTER' && verdict.cautionSector)
+                ? VERDICT_COLOR.WAIT
+                : VERDICT_COLOR[verdict.v]
 
               return (
                 <>
@@ -407,7 +412,9 @@ function VerdictPanel({
   const verdict = calcVerdict(c)
   const levels  = calcLevels(c)
   const signals = buildSignals(c)
-  const vc      = VERDICT_COLOR[verdict.v]
+  const vc      = (verdict.v === 'ENTER' && verdict.cautionSector)
+    ? VERDICT_COLOR.WAIT
+    : VERDICT_COLOR[verdict.v]
 
   const tile: React.CSSProperties = {
     background: 'var(--bg)',
@@ -468,6 +475,12 @@ function VerdictPanel({
                   {w}
                 </span>
               ))}
+            </div>
+          )}
+          {verdict.cautionSector && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 12, padding: '10px 14px', borderRadius: 8, background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.22)' }}>
+              <span style={{ color: 'var(--amber)', fontSize: '0.8rem', flexShrink: 0, lineHeight: 1.4 }}>⚠</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--amber)', lineHeight: 1.55 }}>{verdict.cautionSector}</span>
             </div>
           )}
         </div>
