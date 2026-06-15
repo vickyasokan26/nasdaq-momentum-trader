@@ -44,12 +44,14 @@ export async function POST(req: NextRequest) {
       const result = await scanSymbol(sym, names?.[sym])
       results.push(result)
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[news] scanSymbol(${sym}) failed:`, msg)
       results.push({
         sym,
         riskLevel:    'unknown',
         catalystType: 'none_found',
         confidence:   'low',
-        summary:      'News scan unavailable for this symbol.',
+        summary:      `Scan error: ${msg}`,
         scannedAt:    new Date().toISOString(),
       })
     }
@@ -106,10 +108,11 @@ Definitions:
       'Content-Type':      'application/json',
       'x-api-key':         apiKey,
       'anthropic-version': '2023-06-01',
+      'anthropic-beta':    'web-search-2025-03-05',
     },
     body: JSON.stringify({
       model:      'claude-haiku-4-5-20251001',
-      max_tokens: 256,
+      max_tokens: 1024,
       tools: [{
         type: 'web_search_20250305',
         name: 'web_search',
@@ -118,7 +121,10 @@ Definitions:
     }),
   })
 
-  if (!response.ok) throw new Error(`API error: ${response.status}`)
+  if (!response.ok) {
+    const errBody = await response.text()
+    throw new Error(`API ${response.status}: ${errBody}`)
+  }
 
   const data = await response.json()
   const text = data.content
@@ -126,8 +132,12 @@ Definitions:
     .map((b: { text: string }) => b.text)
     .join('')
 
-  const cleaned = text.replace(/```json|```/g, '').trim()
-  const parsedResult = JSON.parse(cleaned)
+  if (!text) throw new Error(`No text block in response. stop_reason=${data.stop_reason}, blocks=${data.content.map((b: {type:string}) => b.type).join(',')}`)
+
+  // extract JSON even if model wraps it in explanation text
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error(`No JSON found in response: ${text.slice(0, 200)}`)
+  const parsedResult = JSON.parse(jsonMatch[0])
 
   return {
     sym,
