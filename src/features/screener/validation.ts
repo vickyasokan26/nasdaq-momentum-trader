@@ -49,10 +49,11 @@ const REQUIRED_FIELDS  = ['symbol', 'price']
 const IMPORTANT_FIELDS = ['rsi14', 'ema20', 'ema50', 'sma50', 'volume', 'relativeVolume', 'perf1y']
 
 export interface MappingResult {
-  resolved:  Record<string, string>
-  missing:   string[]
-  ambiguous: string[]
-  unmapped:  string[]
+  resolved:        Record<string, string>
+  missing:         string[]
+  importantMissing: string[]
+  ambiguous:       string[]
+  unmapped:        string[]
 }
 
 export function detectColumnMapping(headers: string[]): MappingResult {
@@ -75,11 +76,12 @@ export function detectColumnMapping(headers: string[]): MappingResult {
     }
   }
 
-  const missing = REQUIRED_FIELDS.filter(f => !resolved[f])
+  const missing          = REQUIRED_FIELDS.filter(f => !resolved[f])
+  const importantMissing = IMPORTANT_FIELDS.filter(f => !resolved[f])
   const resolvedOriginals = new Set(Object.values(resolved))
   const unmapped = headers.filter(h => !resolvedOriginals.has(h))
 
-  return { resolved, missing, ambiguous, unmapped }
+  return { resolved, missing, importantMissing, ambiguous, unmapped }
 }
 
 export interface ParsedCsv {
@@ -214,6 +216,7 @@ export function buildValidationReport(
     passedRows,
     droppedRows:       totalRows - validRows,
     requiredMissing:   mapping.missing,
+    importantMissing:  mapping.importantMissing,
     ambiguousColumns:  mapping.ambiguous,
     resolvedMapping:   mapping.resolved,
     rowErrors,

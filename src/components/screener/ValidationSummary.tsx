@@ -8,10 +8,21 @@ interface ValidationReport {
   passedRows:        number
   droppedRows:       number
   requiredMissing:   string[]
+  importantMissing?: string[]
   ambiguousColumns:  string[]
   resolvedMapping:   Record<string, string>
   rowErrors:         Array<{ row: number; sym?: string; reason: string }>
   filterDropReasons: Record<string, number>
+}
+
+const IMPORTANT_FIELD_WARNINGS: Record<string, string> = {
+  perf1y:         'Performance (1 year) column missing — the 100%+ annual gain gate is disabled. Stocks that haven\'t doubled in the past year will slip through. Add "Performance (1 year)" to your TradingView screener columns.',
+  relativeVolume: 'Relative Volume column missing — the RelVol > 0.8 gate is disabled.',
+  rsi14:          'RSI(14) column missing — the RSI 45–75 gate is disabled.',
+  ema20:          'EMA(20) column missing — EMA stack filter and entry zone cannot be calculated.',
+  ema50:          'EMA(50) column missing — EMA stack filter and structural stop cannot be calculated.',
+  sma50:          'SMA(50) column missing — the price > SMA50 trend filter is disabled.',
+  volume:         'Volume column missing — the avg 10D volume > 500K gate is disabled.',
 }
 
 interface Props {
@@ -145,6 +156,22 @@ export function ValidationSummary({ result, onDismiss }: Props) {
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {/* ── Missing filter columns ── */}
+        {(r.importantMissing ?? []).length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {(r.importantMissing ?? []).map(field => {
+              const msg = IMPORTANT_FIELD_WARNINGS[field]
+              if (!msg) return null
+              return (
+                <div key={field} style={{ background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.22)', borderRadius: 8, padding: '10px 14px', display: 'flex', gap: 8 }}>
+                  <span style={{ color: 'var(--amber)', flexShrink: 0 }}>⚠</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--amber)', lineHeight: 1.55 }}>{msg}</span>
+                </div>
+              )
+            })}
           </div>
         )}
 

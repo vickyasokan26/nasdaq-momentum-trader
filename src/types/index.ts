@@ -28,6 +28,7 @@ export interface ValidationReport {
   passedRows:        number
   droppedRows:       number
   requiredMissing:   string[]
+  importantMissing:  string[]   // filter-critical columns absent from CSV — gates silently disabled
   ambiguousColumns:  string[]
   resolvedMapping:   Record<string, string>
   rowErrors:         RowError[]
