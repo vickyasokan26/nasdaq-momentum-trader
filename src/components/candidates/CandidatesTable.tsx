@@ -428,7 +428,10 @@ function VerdictPanel({
       const res  = await fetch('/api/news', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ symbols: [c.sym] }),
+        body:    JSON.stringify({
+          symbols: [c.sym],
+          names:   c.description ? { [c.sym]: c.description } : undefined,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {

@@ -8,6 +8,7 @@ import type { NewsScanResult } from '@/types'
 
 const ScanSchema = z.object({
   symbols: z.array(z.string().max(10)).min(1).max(10),
+  names:   z.record(z.string(), z.string()).optional(), // sym → company name
 })
 
 async function getUserId() {
@@ -35,12 +36,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten() }, { status: 422 })
   }
 
-  const { symbols } = parsed.data
+  const { symbols, names } = parsed.data
   const results: NewsScanResult[] = []
 
   for (const sym of symbols) {
     try {
-      const result = await scanSymbol(sym)
+      const result = await scanSymbol(sym, names?.[sym])
       results.push(result)
     } catch (err) {
       results.push({
@@ -74,13 +75,15 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ results })
 }
 
-async function scanSymbol(sym: string): Promise<NewsScanResult> {
+async function scanSymbol(sym: string, companyName?: string): Promise<NewsScanResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured')
 
+  const nameClause = companyName ? `${companyName} (ticker: ${sym})` : `ticker ${sym}`
+
   const prompt = `You are a professional equity analyst monitoring risk for a NASDAQ momentum trading desk.
 
-Assess the current news risk for ${sym} (NASDAQ-listed stock).
+Search the web for recent news about ${nameClause} and assess the current news risk.
 
 Return ONLY a valid JSON object with these exact fields, no markdown, no preamble:
 {
