@@ -3,14 +3,11 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { DrawdownBar } from '@/components/pnl/DrawdownBar'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 const NAV_SECTIONS = [
   {
     label: 'Overview',
-    items: [
-      { href: '/dashboard', label: 'Dashboard' },
-    ],
+    items: [{ href: '/dashboard', label: 'Dashboard' }],
   },
   {
     label: 'Trading',
@@ -65,9 +62,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="sidebar-footer">
-          <ThemeToggle />
-          <DrawdownBar compact />
-          <div className="acc-pill" style={{ marginTop: 10 }}>
+          <div style={{ marginBottom: '12px' }}>
+            <DrawdownBar compact />
+          </div>
+          <div className="acc-pill">
             <div className="acc-label">Account</div>
             <div className="acc-val">€700</div>
             <div className="acc-sub">Target €20–30/day</div>
