@@ -15,12 +15,18 @@ const WINDOW_CONFIG: Record<TradingWindow, { label: string; color: string; dot: 
 }
 
 export function TradingWindowBadge() {
-  const [now, setNow] = useState(new Date())
+  // Start null so server and first client render match exactly — `new Date()`
+  // evaluated during SSR vs. hydration a moment later was causing a hydration
+  // mismatch on the displayed clock. Real time is set client-side post-mount.
+  const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
+    setNow(new Date())
     const id = setInterval(() => setNow(new Date()), 30_000)
     return () => clearInterval(id)
   }, [])
+
+  if (!now) return null
 
   const window = getTradingWindow(now)
   const cfg    = WINDOW_CONFIG[window]
@@ -36,12 +42,15 @@ export function TradingWindowBadge() {
 
 /** Compact inline version for the sidebar */
 export function TradingWindowDot() {
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null)
 
   useEffect(() => {
+    setNow(new Date())
     const id = setInterval(() => setNow(new Date()), 30_000)
     return () => clearInterval(id)
   }, [])
+
+  if (!now) return null
 
   const window = getTradingWindow(now)
   const cfg    = WINDOW_CONFIG[window]

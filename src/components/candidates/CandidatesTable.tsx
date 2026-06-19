@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -283,9 +283,8 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                   : 'bg-loss/10 text-loss border-loss/20'
 
               return (
-                <>
+                <Fragment key={c.id}>
                   <tr
-                    key={c.id}
                     className={`cursor-pointer ${STATE_COLORS[c.candidateState] ?? ''}`}
                     onClick={() => setExpandedId(isExpanded ? null : c.id)}
                   >
@@ -417,7 +416,7 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
 
                   {/* ── Expanded verdict panel ── */}
                   {isExpanded && (
-                    <tr key={`${c.id}-exp`} className="bg-desk-raised/30">
+                    <tr className="bg-desk-raised/30">
                       <td colSpan={14} className="px-5 py-4">
                         <VerdictPanel candidate={c} onStateChange={(state) => {
                           updateState.mutate({ id: c.id, state })
@@ -425,7 +424,7 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               )
             })}
           </tbody>
