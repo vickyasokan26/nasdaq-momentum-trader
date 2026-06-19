@@ -56,15 +56,27 @@ export interface MappingResult {
   unmapped:        string[]
 }
 
+// TradingView exports indicator params with commas ("RSI, 14, 1 day") while our
+// aliases were written with parens ("RSI(14)") — strip punctuation from both
+// sides before comparing so either style resolves to the same key.
+function normalizeHeader(h: string): string {
+  return h
+    .toLowerCase()
+    .replace(/[(),%-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export function detectColumnMapping(headers: string[]): MappingResult {
-  const normalized = headers.map(h => h.toLowerCase().trim())
+  const normalized = headers.map(normalizeHeader)
   const resolved: Record<string, string> = {}
   const ambiguous: string[] = []
 
   for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
+    const normalizedAliases = aliases.map(normalizeHeader)
     const matches: string[] = []
     for (let i = 0; i < normalized.length; i++) {
-      if (aliases.includes(normalized[i])) {
+      if (normalizedAliases.includes(normalized[i])) {
         matches.push(headers[i])
       }
     }
@@ -138,7 +150,7 @@ export function canonicalizeRow(
   const parseNum = (field: string): number | undefined => {
     const v = get(field)
     if (v === undefined || v === '' || v === 'N/A' || v === '-' || v === 'null') return undefined
-    const cleaned = v.replace('%', '').replace(',', '').trim()
+    const cleaned = v.replace(/%/g, '').replace(/,/g, '').trim()
     const n = parseFloat(cleaned)
     return isNaN(n) ? undefined : n
   }

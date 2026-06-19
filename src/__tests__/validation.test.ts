@@ -62,6 +62,34 @@ describe('detectColumnMapping', () => {
     const { ambiguous } = detectColumnMapping(headers)
     expect(ambiguous).toContain('symbol')
   })
+
+  it('maps TradingView comma-separated indicator headers', () => {
+    // TradingView's actual export uses "Indicator, param, timeframe" — not the
+    // parenthetical "Indicator (param)" style the aliases were written against.
+    const headers = [
+      'Symbol', 'Description',
+      'Relative strength index, 14, 1 day',
+      'Exponential moving average, 50, 1 day',
+      'Exponential moving average, 20, 1 day',
+      'Simple moving average, 50, 1 day',
+      'Price', 'Volume, 1 day', 'Relative volume, 1 day',
+      'Performance %, 1 year', 'Market capitalization',
+      'High, 52 weeks', 'Price change %, 1 week',
+    ]
+    const { resolved, missing, importantMissing } = detectColumnMapping(headers)
+
+    expect(resolved.rsi14).toBe('Relative strength index, 14, 1 day')
+    expect(resolved.ema50).toBe('Exponential moving average, 50, 1 day')
+    expect(resolved.ema20).toBe('Exponential moving average, 20, 1 day')
+    expect(resolved.sma50).toBe('Simple moving average, 50, 1 day')
+    expect(resolved.volume).toBe('Volume, 1 day')
+    expect(resolved.relativeVolume).toBe('Relative volume, 1 day')
+    expect(resolved.perf1y).toBe('Performance %, 1 year')
+    expect(resolved.high52w).toBe('High, 52 weeks')
+    expect(resolved.chg1w).toBe('Price change %, 1 week')
+    expect(missing).toHaveLength(0)
+    expect(importantMissing).toHaveLength(0)
+  })
 })
 
 describe('parseCsvBuffer', () => {

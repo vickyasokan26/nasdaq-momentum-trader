@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-interface Candidate {
+export interface Candidate {
   id:             string
   sym:            string
   description?:   string | null
@@ -42,30 +42,30 @@ const STATE_COLORS: Record<string, string> = {
 
 // ── Verdict engine — mirrors the HTML prototype logic ──────────────────────
 
-interface VerdictResult {
+export interface VerdictResult {
   v:     'ENTER' | 'WAIT' | 'SKIP'
   label: string
   text:  string
 }
 
-function calcEmaGap(ema20?: number | null, ema50?: number | null): number {
+export function calcEmaGap(ema20?: number | null, ema50?: number | null): number {
   if (!ema20 || !ema50 || ema50 === 0) return 0
   return ((ema20 - ema50) / ema50) * 100
 }
 
-function daysUntilEarnings(dateStr?: string | null): number {
+export function daysUntilEarnings(dateStr?: string | null): number {
   if (!dateStr) return 999
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return 999
   return Math.round((d.getTime() - Date.now()) / 86400000)
 }
 
-function calcVerdict(c: Candidate): VerdictResult {
+export function calcVerdict(c: Candidate): VerdictResult {
   const emaGap  = calcEmaGap(c.ema20, c.ema50)
   const rsi     = c.rsi ?? 0
   const earnDays = daysUntilEarnings(c.earningsDate)
 
-  if (c.price > 100 && (c.relVol ?? 0) < 0.8)
+  if (c.price > 100 && c.relVol != null && c.relVol < 0.8)
     return { v: 'SKIP', label: 'Skip — account size constraint',
       text: `At $${c.price.toFixed(2)}/share, position sizing is very tight at €700. Monitor for account scaling to €1,000+.` }
 
