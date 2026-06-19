@@ -49,9 +49,12 @@ src/
       sizer/page.tsx
       history/page.tsx
       settings/page.tsx
+      insights/page.tsx                ← Read-only analytics: win rate, R-multiple,
+                                          rule-break frequency, scoring-tweak suggestions
   components/
     candidates/CandidatesTable.tsx     ← Main candidates table + VerdictPanel
     pnl/DrawdownBar.tsx                ← Drawdown guardrail indicator
+    charts/                            ← recharts wrappers (dashboard/candidates/history/insights)
     ui/Modal.tsx
   constants/
     screener.ts                        ← ALL strategy constants. Single source of truth.
@@ -61,6 +64,8 @@ src/
     screener/validation.ts             ← CSV column alias mapping
     trades/sizing.ts                   ← Position sizing with R:R enforcement
     pnl/calculations.ts                ← P&L and drawdown calculations
+    insights/analyze.ts                ← Read-only outcome analytics — never writes to
+                                          screener.ts, never auto-applies anything
   types/index.ts                       ← All shared TypeScript types
   lib/
     db.ts                              ← Prisma client
@@ -149,7 +154,7 @@ inline `style={{ color: 'var(--green)' }}` or add a named class to globals.css.
 
 ## Testing
 
-163 tests covering all core business logic. Run before any change to strategy logic:
+176 tests covering all core business logic. Run before any change to strategy logic:
 ```bash
 npm test
 ```
@@ -163,6 +168,9 @@ Never break passing tests. If a strategy constant changes, update tests to match
 - Do not use `split(',')` to parse CSV data
 - Do not add new Tailwind structural classes to layout files
 - Do not modify `src/constants/screener.ts` without explicit user confirmation
+- The Insights page's "scoring tweak suggestions" (`features/insights/analyze.ts`)
+  are observational only — never wire up an "apply" action that writes to
+  screener.ts automatically, even if asked for convenience. Confirm explicitly first.
 - Do not analyse or trade stocks that didn't come from the screener CSV
 - Biotech/pharma: AI news scan is unreliable for binary events — always flag for
   manual TradingView news tab check
