@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { DrawdownBar } from '@/components/pnl/DrawdownBar'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 const NAV_SECTIONS = [
   {
@@ -62,6 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="sidebar-footer">
+          <ThemeToggle />
           <div style={{ marginBottom: '12px' }}>
             <DrawdownBar compact />
           </div>

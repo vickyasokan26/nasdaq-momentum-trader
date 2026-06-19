@@ -7,7 +7,10 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const saved = localStorage.getItem('theme') as 'dark' | 'light' | null
-    if (saved) setTheme(saved)
+    if (saved) {
+      setTheme(saved)
+      document.documentElement.setAttribute('data-theme', saved)
+    }
   }, [])
 
   function toggle() {
