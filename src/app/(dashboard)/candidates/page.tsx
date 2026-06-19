@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { CandidatesTable } from '@/components/candidates/CandidatesTable'
+import { CandidateDistributionCharts } from '@/components/charts/CandidateDistributionCharts'
 import { useState } from 'react'
 
 export default function CandidatesPage() {
@@ -54,6 +55,9 @@ export default function CandidatesPage() {
           </select>
         )}
       </div>
+
+      {/* Distribution charts */}
+      {candidates.length > 0 && <CandidateDistributionCharts candidates={candidates} />}
 
       {/* Sector concentration warning */}
       {candidates.length > 0 && <SectorWarning candidates={candidates} />}

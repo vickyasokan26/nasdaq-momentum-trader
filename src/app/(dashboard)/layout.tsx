@@ -19,6 +19,12 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'Analytics',
+    items: [
+      { href: '/insights', label: 'Insights' },
+    ],
+  },
+  {
     label: 'Tools',
     items: [
       { href: '/sizer',    label: 'Position Sizer' },

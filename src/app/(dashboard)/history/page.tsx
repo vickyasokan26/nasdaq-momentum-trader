@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { SnapshotTrendChart } from '@/components/charts/SnapshotTrendChart'
 
 const DAYS = [1, 2, 3, 4, 5]
 
@@ -158,7 +159,11 @@ function PerformanceGrid({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div>
+      <div style={{ padding: 16 }}>
+        <SnapshotTrendChart candidates={candidates} snapshots={snapshots} />
+      </div>
+      <div style={{ overflowX: 'auto' }}>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text3)', padding: '8px 16px 4px', letterSpacing: '0.08em' }}>
         Click any — cell to enter close price · Right-click a filled cell to clear
       </div>
@@ -224,6 +229,7 @@ function PerformanceGrid({ sessionId }: { sessionId: string }) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }
@@ -289,8 +295,9 @@ export default function HistoryPage() {
                   style={{
                     width: '100%', textAlign: 'left', padding: '10px 16px',
                     background: active ? 'rgba(77,159,255,0.08)' : 'transparent',
+                    borderTop: 'none', borderRight: 'none',
                     borderLeft: active ? '2px solid var(--blue)' : '2px solid transparent',
-                    border: 'none', borderBottom: '1px solid var(--border)',
+                    borderBottom: '1px solid var(--border)',
                     cursor: 'pointer', transition: 'background 0.1s',
                   }}
                 >
@@ -330,8 +337,9 @@ export default function HistoryPage() {
                       padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
                       fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
                       color: tab === t ? 'var(--blue)' : 'var(--text3)',
+                      borderTop: 'none', borderRight: 'none', borderLeft: 'none',
                       borderBottom: tab === t ? '2px solid var(--blue)' : '2px solid transparent',
-                      background: 'none', border: 'none',
+                      background: 'none',
                       cursor: 'pointer', transition: 'color 0.15s',
                     }}
                   >

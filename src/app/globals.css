@@ -308,4 +308,50 @@ html, body {
 .modal-field  { display: flex; flex-direction: column; }
 .modal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .modal-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* ── Charts ─────────────────────────────────────────────────── */
+.chart-card {
+  background:   var(--bg2);
+  border:       1px solid var(--border);
+  border-radius: 12px;
+  padding:      18px 20px;
+}
+
+.chart-title {
+  font-family:    var(--font-mono);
+  font-size:      0.6rem;
+  font-weight:    600;
+  color:          var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom:  12px;
+}
+
+.chart-container { width: 100%; height: 240px; }
+
+.chart-empty {
+  display:        flex;
+  align-items:    center;
+  justify-content: center;
+  height:         240px;
+  font-family:    var(--font-mono);
+  font-size:      0.78rem;
+  color:          var(--text3);
+  text-align:     center;
+  padding:        0 20px;
+}
+
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.suggestion-card {
+  background:    var(--bg3);
+  border:        1px solid var(--border);
+  border-radius: 10px;
+  padding:       12px 14px;
+  font-family:   var(--font-mono);
+  font-size:     0.75rem;
+  line-height:   1.55;
+  color:         var(--text2);
+}
 .modal-row    { display: flex; gap: 12px; padding-top: 8px; }

@@ -5,6 +5,7 @@ import { CsvUploadZone } from '@/components/screener/CsvUploadZone'
 import { ValidationSummary } from '@/components/screener/ValidationSummary'
 import { CandidatesTable } from '@/components/candidates/CandidatesTable'
 import { DrawdownPanel } from '@/components/pnl/DrawdownPanel'
+import { WeeklyPnlChart } from '@/components/charts/WeeklyPnlChart'
 import { TradingWindowBadge } from '@/components/ui/TradingWindowBadge'
 import { useState } from 'react'
 import type { ValidationReport } from '@/types'
@@ -53,6 +54,9 @@ export default function DashboardPage() {
           <CsvUploadZone onSuccess={handleUploadSuccess} />
         </div>
       </div>
+
+      {/* Weekly P&L trend */}
+      <WeeklyPnlChart weeklyHistory={pnlData?.weeklyHistory} />
 
       {/* Validation summary (shown after upload) */}
       {uploadResult && (
