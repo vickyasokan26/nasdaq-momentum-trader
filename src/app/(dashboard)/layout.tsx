@@ -2,8 +2,10 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import { DrawdownBar } from '@/components/pnl/DrawdownBar'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { ACCOUNT } from '@/constants/screener'
 
 const NAV_SECTIONS = [
   {
@@ -36,6 +38,12 @@ const NAV_SECTIONS = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn:  () => fetch('/api/settings').then(r => r.json()),
+  })
+  const accountSizeEur: number = settingsData?.settings?.accountSizeEur ?? ACCOUNT.SIZE_EUR
 
   return (
     <div className="shell">
@@ -75,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="acc-pill">
             <div className="acc-label">Account</div>
-            <div className="acc-val">€700</div>
+            <div className="acc-val">€{accountSizeEur.toFixed(0)}</div>
             <div className="acc-sub">Target €20–30/day</div>
           </div>
         </div>

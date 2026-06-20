@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { StatCard } from '@/components/ui/StatCard'
 import { ACCOUNT } from '@/constants/screener'
 
@@ -36,6 +37,12 @@ export default function SizerPage() {
   const [result,  setResult]  = useState<SizerResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
+
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn:  () => fetch('/api/settings').then(r => r.json()),
+  })
+  const accountSizeEur: number = settingsData?.settings?.accountSizeEur ?? ACCOUNT.SIZE_EUR
 
   async function calculate() {
     setError('')
@@ -261,7 +268,7 @@ export default function SizerPage() {
 
       {/* ── Size Reference table ── */}
       <div style={{ ...card, marginTop: 16 }}>
-        <div style={sectionTitle}>Size Reference — €{ACCOUNT.SIZE_EUR} Account</div>
+        <div style={sectionTitle}>Size Reference — €{accountSizeEur.toFixed(0)} Account</div>
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
@@ -276,9 +283,9 @@ export default function SizerPage() {
             </thead>
             <tbody>
               {[1.5, 2.0, 2.5, 3.0, 3.5, 5.0].map(dist => {
-                const pos10 = Math.min(10 / (dist / 100), ACCOUNT.SIZE_EUR * ACCOUNT.MAX_POSITION_PCT)
-                const pos12 = Math.min(12 / (dist / 100), ACCOUNT.SIZE_EUR * ACCOUNT.MAX_POSITION_PCT)
-                const pos14 = Math.min(14 / (dist / 100), ACCOUNT.SIZE_EUR * ACCOUNT.MAX_POSITION_PCT)
+                const pos10 = Math.min(10 / (dist / 100), accountSizeEur * ACCOUNT.MAX_POSITION_PCT)
+                const pos12 = Math.min(12 / (dist / 100), accountSizeEur * ACCOUNT.MAX_POSITION_PCT)
+                const pos14 = Math.min(14 / (dist / 100), accountSizeEur * ACCOUNT.MAX_POSITION_PCT)
                 return (
                   <tr key={dist}>
                     <td><span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{dist}%</span></td>

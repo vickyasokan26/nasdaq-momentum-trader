@@ -50,7 +50,8 @@ export default function SettingsPage() {
         body:    JSON.stringify(values),
       }).then(r => r.json()),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['settings', 'pnl'] })
+      qc.invalidateQueries({ queryKey: ['settings'] })
+      qc.invalidateQueries({ queryKey: ['pnl'] })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     },
@@ -81,7 +82,6 @@ export default function SettingsPage() {
               <label className="modal-label">Account Size €</label>
               <input {...register('accountSizeEur', { valueAsNumber: true, min: 100 })}
                 type="number" step="10" className="modal-input" />
-              <p style={hint}>Current constant: €{ACCOUNT.SIZE_EUR}</p>
             </div>
             <div>
               <label className="modal-label">Risk Per Trade €</label>

@@ -30,6 +30,18 @@ describe('calcVerdict', () => {
     expect(v.label).toMatch(/account size/i)
   })
 
+  it('reflects the live account size in the SKIP message rather than a hardcoded figure', () => {
+    const v = calcVerdict(make({ price: 150, relVol: 0.5 }), 1130)
+    expect(v.text).toContain('€1130')
+    expect(v.text).toContain('€1500') // next 500-rounded milestone above 1130
+    expect(v.text).not.toContain('€700')
+  })
+
+  it('defaults to the ACCOUNT.SIZE_EUR constant when no account size is passed', () => {
+    const v = calcVerdict(make({ price: 150, relVol: 0.5 }))
+    expect(v.text).toContain('€700')
+  })
+
   it('does not trigger the account-size SKIP at exactly $100 (boundary is price > 100)', () => {
     const v = calcVerdict(make({ price: 100, relVol: 0.5 }))
     expect(v.v).not.toBe('SKIP')

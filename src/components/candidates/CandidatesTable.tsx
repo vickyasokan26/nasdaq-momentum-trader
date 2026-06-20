@@ -2,7 +2,8 @@
 
 import { Fragment, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ACCOUNT } from '@/constants/screener'
 
 export interface Candidate {
   id:             string
@@ -60,14 +61,16 @@ export function daysUntilEarnings(dateStr?: string | null): number {
   return Math.round((d.getTime() - Date.now()) / 86400000)
 }
 
-export function calcVerdict(c: Candidate): VerdictResult {
+export function calcVerdict(c: Candidate, accountSizeEur: number = ACCOUNT.SIZE_EUR): VerdictResult {
   const emaGap  = calcEmaGap(c.ema20, c.ema50)
   const rsi     = c.rsi ?? 0
   const earnDays = daysUntilEarnings(c.earningsDate)
 
-  if (c.price > 100 && c.relVol != null && c.relVol < 0.8)
+  if (c.price > 100 && c.relVol != null && c.relVol < 0.8) {
+    const nextMilestone = Math.ceil(accountSizeEur / 500) * 500
     return { v: 'SKIP', label: 'Skip — account size constraint',
-      text: `At $${c.price.toFixed(2)}/share, position sizing is very tight at €700. Monitor for account scaling to €1,000+.` }
+      text: `At $${c.price.toFixed(2)}/share, position sizing is very tight at €${accountSizeEur.toFixed(0)}. Monitor for account scaling to €${nextMilestone}+.` }
+  }
 
   if (emaGap < 0.5)
     return { v: 'WAIT', label: 'Wait — EMA gap too thin',
@@ -225,6 +228,12 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn:  () => fetch('/api/settings').then(r => r.json()),
+  })
+  const accountSizeEur: number = settingsData?.settings?.accountSizeEur ?? ACCOUNT.SIZE_EUR
+
   const updateState = useMutation({
     mutationFn: ({ id, state }: { id: string; state: string }) =>
       fetch('/api/candidates', {
@@ -273,7 +282,7 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
               const rsiColor   = c.rsi != null ? (c.rsi < 50 ? 'text-warn' : c.rsi < 65 ? 'text-gain' : 'text-text-secondary') : ''
               const chgColor   = c.chg1w != null ? (c.chg1w > 0 ? 'text-gain' : 'text-loss') : ''
               const isExpanded = expandedId === c.id
-              const verdict    = calcVerdict(c)
+              const verdict    = calcVerdict(c, accountSizeEur)
               const earnDays   = daysUntilEarnings(c.earningsDate)
 
               const verdictBg = verdict.v === 'ENTER'
@@ -418,7 +427,7 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                   {isExpanded && (
                     <tr className="bg-desk-raised/30">
                       <td colSpan={14} className="px-5 py-4">
-                        <VerdictPanel candidate={c} onStateChange={(state) => {
+                        <VerdictPanel candidate={c} accountSizeEur={accountSizeEur} onStateChange={(state) => {
                           updateState.mutate({ id: c.id, state })
                         }} isPending={updateState.isPending} />
                       </td>
@@ -446,15 +455,17 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
 
 function VerdictPanel({
   candidate,
+  accountSizeEur = ACCOUNT.SIZE_EUR,
   onStateChange,
   isPending,
 }: {
-  candidate:     Candidate
-  onStateChange: (state: string) => void
-  isPending:     boolean
+  candidate:       Candidate
+  accountSizeEur?: number
+  onStateChange:   (state: string) => void
+  isPending:       boolean
 }) {
   const c       = candidate
-  const verdict = calcVerdict(c)
+  const verdict = calcVerdict(c, accountSizeEur)
   const levels  = calcLevels(c)
   const signals = buildSignals(c)
 
