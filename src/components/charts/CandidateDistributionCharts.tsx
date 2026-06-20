@@ -17,6 +17,13 @@ const tooltipStyle = {
 
 const axisTick  = { fontSize: 10, fill: 'var(--text3)', fontFamily: 'var(--font-mono)' }
 
+// recharts right-anchors category axis tick text against the axis line, so a label
+// wider than the reserved axis `width` overflows leftward and gets clipped at the
+// chart boundary — truncate instead of letting that happen. Full name is still in the tooltip.
+function truncateLabel(value: string, maxLen = 14): string {
+  return value.length > maxLen ? `${value.slice(0, maxLen - 1)}…` : value
+}
+
 function SectorChart({ candidates }: { candidates: Candidate[] }) {
   const counts = new Map<string, number>()
   for (const c of candidates) {
@@ -38,7 +45,10 @@ function SectorChart({ candidates }: { candidates: Candidate[] }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
               <XAxis type="number" tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="sector" tick={axisTick} axisLine={false} tickLine={false} width={110} />
+              <YAxis
+                type="category" dataKey="sector" tick={axisTick} axisLine={false} tickLine={false}
+                width={110} tickFormatter={(value: string) => truncateLabel(value)}
+              />
               <Tooltip {...tooltipStyle} formatter={(value: number) => [value, 'Candidates']} />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                 {data.map((_, i) => <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />)}

@@ -47,7 +47,7 @@ export default function InsightsPage() {
       ) : (
         <>
           {/* KPI row */}
-          <div className="chart-grid-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="chart-grid-4">
             <StatCard
               label="Trade win rate"
               value={trades?.ready ? `${trades.winRatePct.toFixed(0)}%` : '—'}

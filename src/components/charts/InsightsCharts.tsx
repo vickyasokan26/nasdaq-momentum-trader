@@ -10,6 +10,13 @@ const tooltipStyle = {
 }
 const axisTick = { fontSize: 10, fill: 'var(--text3)', fontFamily: 'var(--font-mono)' }
 
+// recharts right-anchors category axis tick text against the axis line, so a label
+// wider than the reserved axis `width` overflows leftward and gets clipped rather
+// than wrapped — truncate defensively. Full name is still in the tooltip.
+function truncateLabel(value: string, maxLen = 16): string {
+  return value.length > maxLen ? `${value.slice(0, maxLen - 1)}…` : value
+}
+
 export function GroupPnlChart({ title, data, valueKey, unit }: {
   title:    string
   data:     GroupStat[]
@@ -52,7 +59,10 @@ export function RuleBreakChart({ data }: { data: RuleBreakStat[] }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
               <XAxis type="number" tick={axisTick} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="rule" tick={{ ...axisTick, fontSize: 9 }} axisLine={false} tickLine={false} width={130} />
+              <YAxis
+                type="category" dataKey="rule" tick={{ ...axisTick, fontSize: 9 }} axisLine={false} tickLine={false}
+                width={130} tickFormatter={(value: string) => truncateLabel(value)}
+              />
               <Tooltip {...tooltipStyle} formatter={(value: number, _name, item) => [value, `avg €${item.payload.avgPnlEur.toFixed(1)}`]} />
               <Bar dataKey="count" fill="var(--amber)" radius={[0, 4, 4, 0]} />
             </BarChart>
