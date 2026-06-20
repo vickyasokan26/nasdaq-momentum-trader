@@ -28,7 +28,7 @@ export default function CandidatesPage() {
 
   return (
     <div className="p-6 space-y-5 max-w-[1400px]">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 className="text-xl font-semibold text-text-primary tracking-tight">Candidates</h1>
           <p className="text-text-muted text-sm font-mono mt-0.5">
@@ -42,6 +42,7 @@ export default function CandidatesPage() {
             value={sessionId ?? ''}
             onChange={e => setSessionId(e.target.value || null)}
             className="bg-desk-raised border border-desk-border rounded-lg px-3 py-2 text-sm font-mono text-text-primary focus:outline-none focus:border-accent"
+            style={{ maxWidth: '100%', minWidth: 0, textOverflow: 'ellipsis' }}
           >
             <option value="">Latest session</option>
             {sessions.map((s: { id: string; filename: string; uploadedAt: string; passedRows: number }) => (

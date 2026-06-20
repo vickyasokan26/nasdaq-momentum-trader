@@ -256,7 +256,7 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
 
   return (
     <div className="bg-desk-surface border border-desk-border rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
+      <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
           <thead>
             <tr>

@@ -71,7 +71,7 @@ export default function TradesPage() {
 
       {/* Summary stats */}
       {closed.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="chart-grid-4">
           <StatCard
             label="Total P&L"
             value={pnlSign(totalPnl)}
@@ -163,7 +163,7 @@ function TradeTable({ trades, onClose, onEdit, onDelete, showClose }: {
 }) {
   return (
     <div className="bg-desk-surface border border-desk-border rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
+      <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
           <thead>
             <tr>

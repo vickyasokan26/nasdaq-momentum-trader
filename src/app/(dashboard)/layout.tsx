@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { DrawdownBar } from '@/components/pnl/DrawdownBar'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -38,6 +39,7 @@ const NAV_SECTIONS = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const { data: settingsData } = useQuery({
     queryKey: ['settings'],
@@ -45,9 +47,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   })
   const accountSizeEur: number = settingsData?.settings?.accountSizeEur ?? ACCOUNT.SIZE_EUR
 
+  // Close the mobile drawer whenever the route changes (covers any navigation
+  // path, not just clicking a Link in the drawer itself).
+  useEffect(() => { setMenuOpen(false) }, [pathname])
+
   return (
     <div className="shell">
-      <aside className="sidebar">
+      <button
+        className="sidebar-toggle"
+        onClick={() => setMenuOpen(v => !v)}
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+      >
+        {menuOpen ? '✕' : '☰'}
+      </button>
+
+      <div className={`sidebar-backdrop${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)} />
+
+      <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
 
         <div className="sidebar-logo">
           <div className="sidebar-logo-mark">NDX Desk</div>

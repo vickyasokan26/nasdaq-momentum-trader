@@ -25,11 +25,13 @@ Target: €20–30/day profit. One trade at a time.
 | AI scan    | Anthropic API (news risk scanning)              |
 | Charts     | TradingView Plus (manual, external)             |
 
-**Important styling rule:** Tailwind JIT does not reliably compile all classes in this
-environment. All structural layout and component-specific styles live in
-`src/app/globals.css` as named CSS classes. Components reference those class names
-directly. Do NOT introduce new Tailwind structural classes (flex, grid, w-[], h-[])
-in layout or complex components — add CSS classes to globals.css instead.
+**Important styling rule:** Tailwind now compiles correctly (fixed 2026-06-20 — see
+"Known issues" below). Most existing pages still get their visual design from named
+classes in `src/app/globals.css` plus inline `style={{ color: 'var(--green)' }}`-style
+overrides, and that pattern is still the convention to follow for consistency in files
+that already use it (sidebar shell, tables, modals, charts). New Tailwind utility
+classes are no longer something to actively avoid, but don't rewrite working
+globals.css-based code to Tailwind just for its own sake.
 
 ---
 
@@ -123,8 +125,21 @@ prisma/schema.prisma                   ← Database schema
 
 - **Auth disabled:** `getUserId()` in `lib/session.ts` uses `findFirst` with no session
   check. Login flow is bypassed as workaround. Do not remove this workaround.
-- **Tailwind JIT unreliable:** See styling rule above. Always use globals.css classes
-  for layout. Never use arbitrary Tailwind values like `w-[200px]` in layout files.
+- **Tailwind silently didn't compile at all (fixed 2026-06-20):** the project was
+  missing `postcss.config.js` — without it, Next.js never ran Tailwind through
+  PostCSS, so `@tailwind base/components/utilities` in `globals.css` were inert and
+  every Tailwind utility class (`flex`, `grid`, `bg-desk-surface`, `text-gain`,
+  `font-mono`, all of it) silently rendered as a no-op everywhere it was used — no
+  build error, just missing styles. This is what the old "Tailwind JIT unreliable"
+  guidance was actually describing. Root cause confirmed by checking
+  `document.styleSheets` for `.flex`/`.grid` rules (none existed) and fixed by adding
+  `postcss.config.js` with the standard `tailwindcss`+`autoprefixer` plugins. That
+  surfaced one more bug: `globals.css` had the Google Fonts `@import` *after* the
+  `@tailwind` directives, which is a CSS spec violation once Tailwind actually
+  expands into real rules — `@import` must come first. Both are fixed now; verified
+  with a clean `npm run build`. **Do not delete `postcss.config.js`** or move the
+  font `@import` back below the `@tailwind` lines — either one silently breaks all
+  Tailwind styling again with no build-time warning.
 - **CSV parsing:** TradingView CSVs have Stochastic column headers with internal
   commas. Always use the quoted-field parser in `validation.ts` — never `split(',')`.
 - **CSV header format:** TradingView exports indicator headers as
@@ -145,16 +160,25 @@ prisma/schema.prisma                   ← Database schema
 | `.vp-`      | VerdictPanel and all its children     |
 | `.data-table` | Shared table styles                 |
 
+Mobile: `.shell`/`.sidebar` collapse into an off-canvas drawer below 860px
+(`.sidebar-toggle` hamburger button + `.sidebar-backdrop`, state lives in
+`(dashboard)/layout.tsx`). `.responsive-grid-2/3`, `.chart-grid-2/3/4`,
+`.history-layout`, `.dashboard-top-row` are reusable grids that collapse to fewer
+columns at narrower viewports — prefer reusing one of these over inventing a new
+inline `gridTemplateColumns` when adding a page-level layout grid.
+
 Design tokens are CSS variables on `:root` — use `var(--green)`, `var(--red)`,
-`var(--amber)`, `var(--blue)`, `var(--bg)`, `var(--bg2)`, `var(--bg3)` etc.
-Tailwind color tokens (`text-gain`, `bg-desk-surface`) are unreliable — prefer
-inline `style={{ color: 'var(--green)' }}` or add a named class to globals.css.
+`var(--amber)`, `var(--blue)`, `var(--bg)`, `var(--bg2)`, `var(--bg3)` etc. Tailwind
+color tokens (`text-gain`, `bg-desk-surface`) now compile fine (see "Known issues"),
+but most existing components still use inline `style={{ color: 'var(--green)' }}` or
+a named globals.css class for these — match the surrounding file's convention rather
+than mixing both approaches in the same component.
 
 ---
 
 ## Testing
 
-176 tests covering all core business logic. Run before any change to strategy logic:
+178 tests covering all core business logic. Run before any change to strategy logic:
 ```bash
 npm test
 ```
@@ -166,7 +190,8 @@ Never break passing tests. If a strategy constant changes, update tests to match
 
 - Do not suggest changes to Phase 2 or Phase 3 features (locked)
 - Do not use `split(',')` to parse CSV data
-- Do not add new Tailwind structural classes to layout files
+- Do not delete `postcss.config.js` or move the font `@import` below the `@tailwind`
+  directives in globals.css — see "Known issues" above
 - Do not modify `src/constants/screener.ts` without explicit user confirmation
 - The Insights page's "scoring tweak suggestions" (`features/insights/analyze.ts`)
   are observational only — never wire up an "apply" action that writes to

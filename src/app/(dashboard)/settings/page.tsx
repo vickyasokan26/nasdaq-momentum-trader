@@ -77,7 +77,7 @@ export default function SettingsPage() {
         {/* ── Account ── */}
         <div style={card}>
           <div style={sectionTitle}>Account</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="responsive-grid-2" style={{ gap: 16 }}>
             <div>
               <label className="modal-label">Account Size €</label>
               <input {...register('accountSizeEur', { valueAsNumber: true, min: 100 })}
@@ -95,7 +95,7 @@ export default function SettingsPage() {
         {/* ── Drawdown guardrails ── */}
         <div style={{ ...card, border: '1px solid rgba(255,77,109,0.18)' }}>
           <div style={{ ...sectionTitle, color: 'rgba(255,77,109,0.6)' }}>Drawdown Guardrails</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="responsive-grid-2" style={{ gap: 16 }}>
             <div>
               <label className="modal-label">Max Daily Loss €</label>
               <input {...register('maxDailyLossEur', { valueAsNumber: true, min: 1 })}
@@ -175,7 +175,7 @@ export default function SettingsPage() {
       {/* ── Screener constants reference ── */}
       <div style={{ ...card, marginTop: 16, border: '1px solid var(--border)' }}>
         <div style={sectionTitle}>Active Screener Constants</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px' }}>
+        <div className="responsive-grid-2" style={{ gap: '6px 24px' }}>
           {[
             ['Price Floor',        '> $10'],
             ['RSI Range',          '45–75'],

@@ -274,7 +274,7 @@ export default function HistoryPage() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24 }}>
+      <div className="history-layout">
 
         {/* ── Session list ── */}
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', alignSelf: 'start' }}>

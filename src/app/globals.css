@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700&display=swap');
 
 /* ── Design tokens ──────────────────────────────────────────── */
 :root {
@@ -193,6 +193,94 @@ html, body {
 .main-content {
   overflow-y: auto;
   height: 100vh;
+  min-width: 0; /* grid items default to min-width:auto — without this, wide children
+                   (tables) blow out the column instead of scrolling internally */
+}
+
+/* ── Mobile nav (hamburger drawer) ───────────────────────────── */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 60;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 45;
+}
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .sidebar-toggle { display: flex; }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 240px;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 50;
+  }
+
+  .sidebar.open { transform: translateX(0); }
+
+  .sidebar-backdrop.open { display: block; }
+
+  .sidebar-logo { padding-left: 60px; }
+
+  .main-content {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: visible;
+    padding-top: 54px;
+  }
+}
+
+/* ── Generic responsive grids (collapse to 1 column on narrow viewports) ── */
+.responsive-grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+.responsive-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+
+@media (max-width: 700px) {
+  .responsive-grid-2,
+  .responsive-grid-3 { grid-template-columns: 1fr; }
+}
+
+.history-layout { display: grid; grid-template-columns: 220px 1fr; gap: 24px; }
+
+@media (max-width: 700px) {
+  .history-layout { grid-template-columns: 1fr; }
+}
+
+.dashboard-top-row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+@media (min-width: 860px) {
+  .dashboard-top-row { grid-template-columns: 2fr 1fr; }
+}
+
+@media (max-width: 480px) {
+  .modal-grid-2,
+  .modal-grid-3 { grid-template-columns: 1fr; }
 }
 
 /* ── Utility ────────────────────────────────────────────────── */
@@ -202,6 +290,143 @@ html, body {
 *:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
+}
+
+/* ── Login page ─────────────────────────────────────────────── */
+/* Tailwind's flex/grid/color utilities don't reliably compile in this
+   project (see styling rule above) — this page previously relied on them
+   entirely and rendered completely unstyled as a result. */
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 16px;
+}
+
+.login-bg-grid {
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  background-image:
+    linear-gradient(#6366f1 1px, transparent 1px),
+    linear-gradient(90deg, #6366f1 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.login-content {
+  position: relative;
+  width: 100%;
+  max-width: 384px;
+}
+
+.login-header {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.login-logo-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.login-mark {
+  width: 32px;
+  height: 32px;
+  background: rgba(77,159,255,0.1);
+  border: 1px solid rgba(77,159,255,0.3);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.login-name {
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.login-sub {
+  color: var(--text3);
+  font-size: 0.875rem;
+  font-family: var(--font-mono);
+}
+
+.login-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-error {
+  background: rgba(255,77,109,0.1);
+  border: 1px solid rgba(255,77,109,0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  font-family: var(--font-mono);
+  color: var(--red);
+}
+
+.login-btn {
+  width: 100%;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 11px 0;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.login-footer {
+  text-align: center;
+  color: var(--text3);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  margin-top: 24px;
 }
 
 /* ── Table ──────────────────────────────────────────────────── */
@@ -308,6 +533,16 @@ html, body {
 .modal-field  { display: flex; flex-direction: column; }
 .modal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .modal-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* ── Generic surface card (page-level panels — empty states, stat tiles) ── */
+.surface-card {
+  background:   var(--bg2);
+  border:       1px solid var(--border);
+  border-radius: 12px;
+  padding:      16px;
+}
+
+.surface-card-center { text-align: center; padding: 24px; }
 
 /* ── Charts ─────────────────────────────────────────────────── */
 .chart-card {

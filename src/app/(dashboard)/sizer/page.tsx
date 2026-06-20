@@ -90,14 +90,14 @@ export default function SizerPage() {
       </div>
 
       {/* Two-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+      <div className="responsive-grid-2" style={{ gap: 16, alignItems: 'start' }}>
 
         {/* ── Input panel ── */}
         <div style={card}>
           <div style={sectionTitle}>Trade Parameters</div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="responsive-grid-2" style={{ gap: 12 }}>
               <div>
                 <label className="modal-label">Entry Price $</label>
                 <input type="number" step="0.01" value={entry}
@@ -113,7 +113,7 @@ export default function SizerPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="responsive-grid-2" style={{ gap: 12 }}>
               <div>
                 <label className="modal-label">Target 1 $</label>
                 <input type="number" step="0.01" value={t1}
@@ -173,7 +173,7 @@ export default function SizerPage() {
           ) : (
             <>
               {/* Stat grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="responsive-grid-2" style={{ gap: 10 }}>
                 <StatCard
                   label="Shares"
                   value={result.shares}

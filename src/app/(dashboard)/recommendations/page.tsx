@@ -52,7 +52,7 @@ export default function RecommendationsPage() {
 
       {/* Stats row */}
       {closedWithPct.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-desk-surface border border-desk-border rounded-xl p-4">
             <div className="text-xxs font-mono text-text-muted uppercase tracking-widest mb-1.5">Avg Outcome</div>
             <div className={`text-2xl font-mono font-semibold tabular ${avgPct != null && avgPct >= 0 ? 'text-gain' : 'text-loss'}`}>
@@ -130,7 +130,7 @@ function RecTable({ recs, onClose, showClose }: {
 }) {
   return (
     <div className="bg-desk-surface border border-desk-border rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
+      <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
           <thead>
             <tr>
