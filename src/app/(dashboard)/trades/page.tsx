@@ -333,16 +333,26 @@ function CreateTradeModal({ open, onClose, onCreated }: {
     setApiError('')
     setWarnings([])
     setRuleBreaks([])
-    const data = await mutation.mutateAsync({
-      ...values,
-      entryPrice:     parseFloat(values.entryPrice as string),
-      stopPrice:      parseFloat(values.stopPrice as string),
-      t1Price:        parseFloat(values.t1Price as string),
-      t2Price:        values.t2Price ? parseFloat(values.t2Price as string) : undefined,
-      riskEur:        parseFloat(values.riskEur as string),
-      shares:         parseInt(values.shares as string),
-      entryChecklist: checklist,
-    })
+    if (!checklistComplete) {
+      setApiError('Complete the 1H entry checklist before logging.')
+      return
+    }
+    let data
+    try {
+      data = await mutation.mutateAsync({
+        ...values,
+        entryPrice:     parseFloat(values.entryPrice as string),
+        stopPrice:      parseFloat(values.stopPrice as string),
+        t1Price:        parseFloat(values.t1Price as string),
+        t2Price:        values.t2Price ? parseFloat(values.t2Price as string) : undefined,
+        riskEur:        parseFloat(values.riskEur as string),
+        shares:         parseInt(values.shares as string),
+        entryChecklist: checklist,
+      })
+    } catch {
+      setApiError('Network error — check your connection and try again.')
+      return
+    }
     if (data.error) { setApiError(data.error); return }
     setWarnings(data.sizing?.warnings ?? [])
     setRuleBreaks(data.ruleBreaks ?? [])
@@ -458,8 +468,8 @@ function CreateTradeModal({ open, onClose, onCreated }: {
             </label>
           ))}
           {!checklistComplete && (
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text3)', marginTop: 2 }}>
-              Check all 3 conditions to enable Log Trade
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--amber)', marginTop: 2 }}>
+              ⚠ Check all 3 conditions before logging
             </p>
           )}
         </div>
@@ -472,7 +482,7 @@ function CreateTradeModal({ open, onClose, onCreated }: {
 
         <div className="modal-row">
           <button type="button" onClick={onClose} className="modal-btn modal-btn-cancel">Cancel</button>
-          <button type="submit" disabled={mutation.isPending || !checklistComplete} className="modal-btn modal-btn-primary">
+          <button type="submit" disabled={mutation.isPending} className="modal-btn modal-btn-primary">
             {mutation.isPending ? 'Logging…' : 'Log Trade'}
           </button>
         </div>
