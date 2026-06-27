@@ -1,17 +1,20 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CsvUploadZone } from '@/components/screener/CsvUploadZone'
 import { ValidationSummary } from '@/components/screener/ValidationSummary'
 import { CandidatesTable } from '@/components/candidates/CandidatesTable'
 import { DrawdownPanel } from '@/components/pnl/DrawdownPanel'
 import { WeeklyPnlChart } from '@/components/charts/WeeklyPnlChart'
 import { TradingWindowBadge } from '@/components/ui/TradingWindowBadge'
+import { CreateTradeModal } from '@/components/trades/CreateTradeModal'
 import { useState } from 'react'
 import type { ValidationReport } from '@/types'
 
 export default function DashboardPage() {
-  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null)
+  const qc = useQueryClient()
+  const [uploadResult,  setUploadResult]  = useState<UploadResult | null>(null)
+  const [showLogTrade,  setShowLogTrade]  = useState(false)
 
   const { data: pnlData } = useQuery({
     queryKey: ['pnl'],
@@ -42,8 +45,25 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        <TradingWindowBadge />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <TradingWindowBadge />
+          <button
+            onClick={() => setShowLogTrade(true)}
+            className="bg-accent hover:bg-indigo-400 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            + Log Trade
+          </button>
+        </div>
       </div>
+
+      <CreateTradeModal
+        open={showLogTrade}
+        onClose={() => setShowLogTrade(false)}
+        onCreated={() => {
+          qc.invalidateQueries({ queryKey: ['pnl'] })
+          setShowLogTrade(false)
+        }}
+      />
 
       {/* Top row: Drawdown + Upload */}
       <div className="dashboard-top-row">
