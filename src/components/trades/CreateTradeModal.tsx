@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Modal } from '@/components/ui/Modal'
@@ -13,14 +13,15 @@ const CHECKLIST_ITEMS = [
 ] as const
 
 interface Props {
-  open:      boolean
-  onClose:   () => void
-  onCreated: () => void
+  open:        boolean
+  onClose:     () => void
+  onCreated:   () => void
+  defaultSym?: string   // pre-fill the symbol and auto-lookup levels
 }
 
-export function CreateTradeModal({ open, onClose, onCreated }: Props) {
+export function CreateTradeModal({ open, onClose, onCreated, defaultSym }: Props) {
   const qc = useQueryClient()
-  const { register, handleSubmit, setValue } = useForm<{
+  const { register, handleSubmit, setValue, reset } = useForm<{
     sym: string; entryPrice: number; stopPrice: number; t1Price: number
     t2Price: number; riskEur: number; shares: number; notes: string
     setupQuality: string
@@ -32,6 +33,23 @@ export function CreateTradeModal({ open, onClose, onCreated }: Props) {
   const [autoFilled, setAutoFilled] = useState(false)
   const [lookingUp,  setLookingUp]  = useState(false)
   const [checklist,  setChecklist]  = useState({ priceAtEma: false, rsi1hOk: false, vol1hOk: false })
+
+  // When opened for a specific candidate, reset and pre-fill symbol + levels
+  useEffect(() => {
+    if (open && defaultSym) {
+      reset()
+      setApiError(''); setWarnings([]); setRuleBreaks([]); setAutoFilled(false)
+      setChecklist({ priceAtEma: false, rsi1hOk: false, vol1hOk: false })
+      setValue('sym', defaultSym)
+      lookupScreener(defaultSym)
+    } else if (!open) {
+      // Clear state when modal closes so it's fresh next time
+      reset()
+      setApiError(''); setWarnings([]); setRuleBreaks([]); setAutoFilled(false)
+      setChecklist({ priceAtEma: false, rsi1hOk: false, vol1hOk: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultSym])
 
   const checklistComplete = checklist.priceAtEma && checklist.rsi1hOk && checklist.vol1hOk
 

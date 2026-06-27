@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ACCOUNT } from '@/constants/screener'
+import { CreateTradeModal } from '@/components/trades/CreateTradeModal'
 
 export interface Candidate {
   id:             string
@@ -225,7 +226,8 @@ function buildSignals(c: Candidate): Signal[] {
 // ── Main component ────────────────────────────────────────────────────────
 
 export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedId,    setExpandedId]    = useState<string | null>(null)
+  const [tradingSym,    setTradingSym]    = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data: settingsData } = useQuery({
@@ -417,9 +419,24 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
                       </Badge>
                     </td>
 
-                    {/* Expand toggle */}
+                    {/* Log Trade + Expand toggle */}
                     <td>
-                      <span className="text-text-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
+                      <div className="flex items-center gap-2">
+                        {verdict.v === 'ENTER' && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setTradingSym(c.sym) }}
+                            style={{
+                              fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 600,
+                              padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(0,214,124,0.4)',
+                              background: 'rgba(0,214,124,0.08)', color: 'var(--green)',
+                              cursor: 'pointer', whiteSpace: 'nowrap',
+                            }}
+                          >
+                            + Log
+                          </button>
+                        )}
+                        <span className="text-text-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
+                      </div>
                     </td>
                   </tr>
 
@@ -447,6 +464,13 @@ export function CandidatesTable({ candidates, showAll = false, maxRows = 20 }: P
           </span>
         </div>
       )}
+
+      <CreateTradeModal
+        open={tradingSym !== null}
+        defaultSym={tradingSym ?? undefined}
+        onClose={() => setTradingSym(null)}
+        onCreated={() => setTradingSym(null)}
+      />
     </div>
   )
 }
